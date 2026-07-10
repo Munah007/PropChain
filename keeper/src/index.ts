@@ -1,25 +1,29 @@
-// PropChain keeper — Day 1 scope:
-//  * authenticate against TxLINE devnet (free World Cup tier)
-//  * subscribe to the scores SSE stream
-//  * record every event to recordings/scores-<date>.jsonl  (replay is our
-//    demo/test lifeline once the tournament — and free data — ends Jul 19)
+// PropChain keeper: two concurrent duties.
 //
-// Day 3 scope (TODO): track open BetConfig accounts via program subscription,
-// fetch stat-validation proofs on relevant events, send propose_settlement /
-// challenge / finalize_settlement transactions.
+//  1. RECORD — subscribe to TxLINE's scores SSE stream and append every event
+//     to recordings/scores-<date>.jsonl (replay is our demo/test lifeline once
+//     the tournament — and free data — ends Jul 19).
+//  2. SETTLE — reconcile every open bet against the freshest TxLINE proof:
+//     propose at match finality, challenge wrong pending results, finalize
+//     lapsed windows, void abandoned bets. See settlement.ts.
+//
+// Permissionless: anyone can run this binary against the public program.
 
-import { Keypair } from "@solana/web3.js";
-import { TxLineClient } from "@propchain/txline";
+import { Connection, Keypair } from "@solana/web3.js";
+import { TxLineClient, type TxLineNetwork } from "@propchain/txline";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { SettlementEngine } from "./settlement.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..", "..");
 const RECORDINGS_DIR = process.env.RECORDINGS_DIR ?? join(REPO_ROOT, "recordings");
 const KEYPAIR_PATH = process.env.KEEPER_KEYPAIR ?? join(REPO_ROOT, "keeper", "keeper-keypair.json");
 const CREDS_PATH = join(REPO_ROOT, "keeper", "txline-creds.json");
-const NETWORK = (process.env.TXLINE_NETWORK ?? "devnet") as "devnet" | "mainnet";
+const NETWORK = (process.env.TXLINE_NETWORK ?? "devnet") as TxLineNetwork;
+const RPC_URL = process.env.RPC_URL ?? "https://api.devnet.solana.com";
+const RECONCILE_INTERVAL_MS = Number(process.env.RECONCILE_INTERVAL_MS ?? 30_000);
 
 function loadOrCreateKeypair(path: string): Keypair {
   if (existsSync(path)) {
@@ -31,15 +35,7 @@ function loadOrCreateKeypair(path: string): Keypair {
   return kp;
 }
 
-async function main() {
-  mkdirSync(RECORDINGS_DIR, { recursive: true });
-  const keypair = loadOrCreateKeypair(KEYPAIR_PATH);
-  const txline = new TxLineClient(NETWORK, CREDS_PATH);
-
-  const txoracleIdl = JSON.parse(readFileSync(join(REPO_ROOT, "idls", "txoracle.json"), "utf8"));
-  await txline.ensureCredentials(keypair, txoracleIdl);
-  console.log(`[keeper] TxLINE credentials ready (${NETWORK})`);
-
+async function recordStream(txline: TxLineClient) {
   let events = 0;
   while (true) {
     try {
@@ -50,8 +46,6 @@ async function main() {
         const day = new Date().toISOString().slice(0, 10);
         appendFileSync(join(RECORDINGS_DIR, `scores-${day}.jsonl`), JSON.stringify(record) + "\n");
         if (events % 50 === 0) console.log(`[keeper] ${events} events recorded`);
-        // TODO(Day 3): match event.data.FixtureId against open bets and
-        // drive the propose/challenge/finalize settlement loop.
       }
       console.log("[keeper] stream ended, reconnecting in 5s");
     } catch (err) {
@@ -60,6 +54,36 @@ async function main() {
     }
     await new Promise((r) => setTimeout(r, 5_000));
   }
+}
+
+async function settlementLoop(engine: SettlementEngine) {
+  while (true) {
+    try {
+      await engine.reconcile();
+    } catch (err) {
+      console.error(`[settle] reconcile failed: ${(err as Error).message}`);
+    }
+    await new Promise((r) => setTimeout(r, RECONCILE_INTERVAL_MS));
+  }
+}
+
+async function main() {
+  mkdirSync(RECORDINGS_DIR, { recursive: true });
+  const keypair = loadOrCreateKeypair(KEYPAIR_PATH);
+  const connection = new Connection(RPC_URL, "confirmed");
+  const txline = new TxLineClient(NETWORK, CREDS_PATH);
+
+  const txoracleIdl = JSON.parse(readFileSync(join(REPO_ROOT, "idls", "txoracle.json"), "utf8"));
+  await txline.ensureCredentials(keypair, txoracleIdl);
+  console.log(`[keeper] TxLINE credentials ready (${NETWORK})`);
+
+  const propchainIdl = JSON.parse(
+    readFileSync(join(REPO_ROOT, "target", "idl", "propchain.json"), "utf8")
+  );
+  const engine = new SettlementEngine(connection, keypair, txline, propchainIdl, NETWORK);
+  console.log(`[keeper] settlement engine armed (reconcile every ${RECONCILE_INTERVAL_MS / 1000}s)`);
+
+  await Promise.all([recordStream(txline), settlementLoop(engine)]);
 }
 
 main().catch((e) => {

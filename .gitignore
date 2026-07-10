@@ -1,0 +1,18 @@
+node_modules/
+.anchor/
+target/
+!target/idl/
+!target/types/
+test-ledger/
+**/*.rs.bk
+.next/
+.env
+.env.local
+
+# local keypairs & credentials — never commit
+*-keypair.json
+txline-creds.json
+funder-state.json
+
+recordings/*.jsonl
+.DS_Store

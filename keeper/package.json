@@ -1,0 +1,14 @@
+{
+  "name": "@propchain/keeper",
+  "version": "0.1.0",
+  "description": "PropChain keeper: watches TxLINE feeds, records them, proposes and challenges settlements",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@propchain/txline": "*",
+    "@solana/web3.js": "^1.98.0"
+  }
+}

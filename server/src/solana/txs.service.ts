@@ -165,6 +165,21 @@ export class TxsService {
     return this.toBase64(tx, user);
   }
 
+  /** All positions for a wallet (memcmp on UserPosition.user at offset 8+32). */
+  async listPositions(user: PublicKey) {
+    const { program } = await this.getProgram();
+    const positions = await (program.account as any).userPosition.all([
+      { memcmp: { offset: 8 + 32, bytes: user.toBase58() } },
+    ]);
+    return positions.map(({ publicKey, account }: any) => ({
+      address: publicKey.toBase58(),
+      bet: account.bet.toBase58(),
+      side: Object.keys(account.side)[0],
+      amount: account.amount.toString(),
+      claimed: account.claimed,
+    }));
+  }
+
   async listBets() {
     const { program } = await this.getProgram();
     const bets = await (program.account as any).betConfig.all();

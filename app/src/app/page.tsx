@@ -1,101 +1,132 @@
-import Image from "next/image";
+"use client";
+
+import { useMemo, useState } from "react";
+import { api, type Bet } from "@/lib/api";
+import { usePoll, useSession } from "@/lib/hooks";
+import { SessionBar } from "@/components/SessionBar";
+import { BetCard } from "@/components/BetCard";
+import { CreateBetSheet } from "@/components/CreateBetSheet";
+import { BetDetailSheet } from "@/components/BetDetailSheet";
+import { Button } from "@/components/ui";
+
+const STATUS_ORDER: Record<Bet["status"], number> = {
+  open: 0,
+  settlementPending: 1,
+  settled: 2,
+  voided: 3,
+};
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { session, loading, signIn, refresh, signOut } = useSession();
+  const { data: bets, refetch: refetchBets } = usePoll(() => api.bets(), 8000);
+  const { data: fixtures } = usePoll(() => api.fixtures(), 60000);
+  const { data: positions, refetch: refetchPositions } = usePoll(
+    () => (session ? api.positions(session.userKey) : Promise.resolve([])),
+    15000,
+    [session?.userKey]
+  );
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+  const [creating, setCreating] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const sorted = useMemo(
+    () =>
+      [...(bets ?? [])].sort(
+        (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.kickoffTs - b.kickoffTs
+      ),
+    [bets]
+  );
+  const positionByBet = useMemo(
+    () => new Map((positions ?? []).map((p) => [p.bet, p])),
+    [positions]
+  );
+  const selectedBet = sorted.find((b) => b.address === selected) ?? null;
+
+  function onChainChange() {
+    refetchBets();
+    refetchPositions();
+    if (session) refresh(session.userKey);
+  }
+
+  return (
+    <div className="mx-auto min-h-screen w-full max-w-2xl px-4 pb-24">
+      <header className="flex items-center justify-between py-5">
+        <h1 className="text-lg font-bold tracking-tight text-ink">
+          Prop<span className="text-over">Chain</span>
+        </h1>
+        <SessionBar session={session} loading={loading} onSignIn={signIn} onSignOut={signOut} />
+      </header>
+
+      <section className="mb-6 rounded-2xl border border-hairline bg-surface p-5">
+        <h2 className="text-xl font-bold leading-snug text-ink">
+          World Cup prop bets,
+          <br />
+          settled by cryptographic proof.
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-ink-2">
+          Pick a match stat, take a side, stake pUSDC. When the whistle blows, a Merkle proof from
+          TxLINE&apos;s oracle — verified on-chain — pays the winners. No bookmaker. No admin key.
+        </p>
+        {session ? (
+          <Button onClick={() => setCreating(true)} className="mt-4">
+            + Create a bet
+          </Button>
+        ) : (
+          <p className="mt-4 text-xs text-ink-3">
+            Sign in with your email — a wallet is created and funded for you automatically. Nothing
+            to install.
+          </p>
+        )}
+      </section>
+
+      <section aria-label="Bets" className="space-y-3">
+        {sorted.length === 0 && (
+          <p className="py-12 text-center text-sm text-ink-3">
+            {bets === null ? "Loading bets…" : "No bets yet — create the first one."}
+          </p>
+        )}
+        {sorted.map((bet) => (
+          <BetCard
+            key={bet.address}
+            bet={bet}
+            fixtures={fixtures ?? []}
+            position={positionByBet.get(bet.address)}
+            onOpen={() => setSelected(bet.address)}
           />
-          Learn
-        </a>
+        ))}
+      </section>
+
+      <footer className="mt-10 text-center text-xs leading-relaxed text-ink-3">
+        Devnet demo · TxODDS World Cup Hackathon ·{" "}
         <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+          className="hover:text-ink-2"
+          href="https://explorer.solana.com/address/3HwBzjvoM663GwMSveXdNNFVaQ4JdNxQAyAxEdZv7MJU?cluster=devnet"
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noreferrer"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
+          program 3HwBz…7MJU ↗
         </a>
       </footer>
+
+      {session && fixtures && (
+        <CreateBetSheet
+          open={creating}
+          onClose={() => setCreating(false)}
+          session={session}
+          fixtures={fixtures}
+          onCreated={onChainChange}
+        />
+      )}
+      {selectedBet && (
+        <BetDetailSheet
+          bet={selectedBet}
+          fixtures={fixtures ?? []}
+          session={session}
+          position={positionByBet.get(selectedBet.address)}
+          onClose={() => setSelected(null)}
+          onChanged={onChainChange}
+        />
+      )}
     </div>
   );
 }

@@ -9,12 +9,13 @@ import { BetsService } from "./bets/bets.service";
 import { WalletsService } from "./wallets/wallets.service";
 import { FundingService } from "./funding/funding.service";
 import { TxsService } from "./solana/txs.service";
-
-
+import { FixturesController } from "./fixtures/fixtures.controller";
+import { FixturesService } from "./fixtures/fixtures.service";
 
 @Module({
-  controllers: [SessionController, BetsController],
+  controllers: [SessionController, BetsController, FixturesController],
   providers: [
+    FixturesService,
     {
       provide: SOLANA_CONNECTION,
       useFactory: () =>

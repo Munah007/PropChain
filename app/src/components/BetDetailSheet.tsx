@@ -21,17 +21,21 @@ export function BetDetailSheet({
   fixtures,
   session,
   position,
+  initialSide,
   onClose,
   onChanged,
+  onRequireAuth,
 }: {
   bet: Bet | null;
   fixtures: Fixture[];
   session: Session | null;
   position?: Position;
+  initialSide?: "over" | "under";
   onClose: () => void;
   onChanged: () => void;
+  onRequireAuth: (intent: string) => void;
 }) {
-  const [side, setSide] = useState<"over" | "under">("over");
+  const [side, setSide] = useState<"over" | "under">(initialSide ?? "over");
   const [amount, setAmount] = useState(10);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +43,7 @@ export function BetDetailSheet({
 
   if (!bet) return null;
   const now = Math.floor(Date.now() / 1000);
-  const stakeable = bet.status === "open" && now < bet.kickoffTs && session;
+  const stakeable = bet.status === "open" && now < bet.kickoffTs;
   const winningSide = bet.result === null ? null : bet.result ? "over" : "under";
   const claimable =
     session &&
@@ -136,10 +140,14 @@ export function BetDetailSheet({
                 aria-label="Stake amount in pUSDC"
               />
               <Button
-                onClick={() => run("stake", () => api.stake(bet.address, { userKey: session!.userKey, side, amount }))}
+                onClick={() =>
+                  session
+                    ? run("stake", () => api.stake(bet.address, { userKey: session.userKey, side, amount }))
+                    : onRequireAuth(`stake ${amount} pUSDC on ${side === "over" ? "Over" : "Under"}`)
+                }
                 disabled={busy !== null || amount <= 0}
               >
-                {busy === "stake" ? "Staking…" : "Stake"}
+                {busy === "stake" ? "Staking…" : session ? "Stake" : "Sign in & stake"}
               </Button>
             </div>
             {position && (

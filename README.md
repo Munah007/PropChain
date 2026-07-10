@@ -18,9 +18,9 @@ Built for the [TxODDS World Cup Hackathon](https://superteam.fun/earn/hackathon/
 | Path | What |
 |---|---|
 | `programs/propchain` | Anchor program: bet lifecycle, USDC escrow, CPI settlement |
-| `app/` | Next.js frontend — Privy social login, bet builder, live dashboard, proof viewer |
+| `app/` | Next.js frontend — pure UI over the server API (no wallet code in the browser) |
 | `keeper/` | Watches TxLINE SSE, records feeds, proposes/challenges settlements |
-| `funder/` | Drips devnet SOL + mock USDC to new embedded wallets |
+| `server/` | NestJS API — server-side Privy wallets (create/sign/send), auto-funding, bet endpoints |
 | `packages/txline` | Standalone TxLINE TS client (auth, REST, SSE, proof→instruction args) |
 | `idls/` | TxLINE txoracle IDL (devnet) consumed via `declare_program!` |
 | `recordings/` | JSONL feed recordings for deterministic replay in tests & demos |
@@ -36,7 +36,7 @@ anchor test --provider.cluster localnet
 
 # services
 npm run keeper   # authenticates against TxLINE devnet, records the scores stream
-npm run funder   # POST /fund {address} → 0.05 SOL + 100 pUSDC
+npm run server   # NestJS API on :8899 — sessions, bets, stakes, claims (wallets signed server-side)
 
 # app
 cd app && npm run dev

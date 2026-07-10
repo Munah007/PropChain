@@ -6,14 +6,14 @@
   "workspaces": [
     "packages/*",
     "keeper",
-    "funder"
+    "server"
   ],
   "scripts": {
     "build:program": "anchor build",
     "test:program": "anchor test",
     "keeper": "npm run start -w keeper",
-    "funder": "npm run start -w funder",
-    "test:settlement": "node --test tests/settlement.test.ts"
+    "test:settlement": "node --test tests/settlement.test.ts",
+    "server": "npm run start -w server"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

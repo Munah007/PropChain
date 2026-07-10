@@ -16,3 +16,6 @@ funder-state.json
 
 recordings/*.jsonl
 .DS_Store
+server/local-wallets.json
+server/users.json
+server/dist/

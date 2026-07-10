@@ -6,9 +6,14 @@ pub const VOID_TIMELOCK_SECS: i64 = 48 * 60 * 60;
 pub const CHALLENGE_WINDOW_SECS: i64 = 90 * 60;
 
 /// TxLINE soccer base stat keys: 1/2 goals, 3/4 yellows, 5/6 reds, 7/8 corners
-/// (odd = home, even = away). Full key = period * 1000 + base, period 0..=5.
+/// (odd = home, even = away). Phase 1 supports full-game stats only.
 pub const MAX_STAT_BASE_KEY: u16 = 8;
-pub const MAX_STAT_PERIOD: u16 = 5;
+
+/// The `period` field on a proven stat is a match-phase marker (observed on
+/// real feed data: 2 = 1st half, 3 = halftime, 4 = 2nd half, 5 = stoppage,
+/// 100 = game_finalised, 0 = post-final). Settlement proofs are only accepted
+/// from final phases — this is the on-chain "match is over" gate.
+pub const FINAL_STAT_PERIODS: [i32; 2] = [100, 0];
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
 pub enum Comparison {
@@ -91,10 +96,7 @@ impl UserPosition {
     pub const SEED: &'static [u8] = b"position";
 }
 
-/// Validates a period-encoded TxLINE stat key: period * 1000 + base_key,
-/// base_key in 1..=8, period in 0..=5.
+/// Validates a TxLINE base stat key (Phase 1: full-game stats, keys 1..=8).
 pub fn is_valid_stat_key(key: u16) -> bool {
-    let base = key % 1000;
-    let period = key / 1000;
-    (1..=MAX_STAT_BASE_KEY).contains(&base) && period <= MAX_STAT_PERIOD
+    (1..=MAX_STAT_BASE_KEY).contains(&key)
 }

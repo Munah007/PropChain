@@ -57,6 +57,11 @@ pub fn handler(ctx: Context<CreateBet>, args: CreateBetArgs) -> Result<()> {
     if let Some(key_b) = args.stat_key_b {
         require!(is_valid_stat_key(key_b), PropChainError::InvalidStatKey);
     }
+    // The oracle predicate threshold is i32.
+    require!(
+        args.threshold <= i32::MAX as u32,
+        PropChainError::ThresholdTooLarge
+    );
 
     let bet = &mut ctx.accounts.bet;
     bet.creator = ctx.accounts.creator.key();

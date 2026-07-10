@@ -32,7 +32,31 @@ pub mod propchain {
         instructions::place_stake::handler(ctx, side, amount)
     }
 
-    // Day 2 (PRD §5.3): propose_settlement (validate_stat CPI, latest-proof-wins),
-    // finalize_settlement (challenge window + zero-winner rule).
-    // Day 3: void_bet (kickoff + 48h timelock), claim (pull-based payouts/refunds).
+    /// Permissionless: propose (or challenge) a settlement with a TxLINE
+    /// Merkle proof. The predicate is built from immutable bet config and
+    /// verified via CPI into txoracle's validate_stat. Latest proof wins.
+    pub fn propose_settlement(
+        ctx: Context<ProposeSettlement>,
+        args: ProposeSettlementArgs,
+    ) -> Result<()> {
+        instructions::propose_settlement::handler(ctx, args)
+    }
+
+    /// Permissionless: lock in a pending result once its challenge window
+    /// has elapsed. Voids instead if the winning side has no stake.
+    pub fn finalize_settlement(ctx: Context<FinalizeSettlement>) -> Result<()> {
+        instructions::finalize_settlement::handler(ctx)
+    }
+
+    /// Permissionless safety valve: void a never-settled bet after
+    /// kickoff + 48h so stakes become refundable.
+    pub fn void_bet(ctx: Context<VoidBet>) -> Result<()> {
+        instructions::void_bet::handler(ctx)
+    }
+
+    /// Pull-based claim: winner payout on settled bets, stake refund on
+    /// voided ones.
+    pub fn claim(ctx: Context<Claim>) -> Result<()> {
+        instructions::claim::handler(ctx)
+    }
 }

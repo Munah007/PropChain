@@ -92,6 +92,24 @@ export function kickoffLabel(ts: number): string {
   });
 }
 
+/** Translate raw program/RPC errors into human feedback. */
+const PROGRAM_ERRORS: [RegExp, string][] = [
+  [/SideMismatch|0x1775/, "You already have a position on the other side — top-ups must stay on your original side."],
+  [/StakingClosed|0x1773/, "Staking closed at kickoff for this bet."],
+  [/BetNotOpen|0x1772/, "This bet is no longer open."],
+  [/AmountZero|0x1774/, "Enter an amount greater than zero."],
+  [/AlreadyClaimed|0x1781/, "You've already claimed this one."],
+  [/NotAWinner|0x1780/, "This position is on the losing side — nothing to claim."],
+  [/insufficient funds|insufficient lamports|custom program error: 0x1$/i, "Not enough pUSDC in your wallet for this stake."],
+];
+
+export function friendlyError(message: string): string {
+  for (const [pattern, friendly] of PROGRAM_ERRORS) {
+    if (pattern.test(message)) return friendly;
+  }
+  return message.length > 160 ? "Transaction failed — check the details and try again." : message;
+}
+
 export function shortAddress(address: string): string {
   return `${address.slice(0, 4)}…${address.slice(-4)}`;
 }

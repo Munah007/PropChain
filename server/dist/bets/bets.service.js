@@ -31,6 +31,23 @@ let BetsService = class BetsService {
         }
         return wallet;
     }
+    /**
+     * Send a transaction and surface program errors to the client instead of
+     * letting them collapse into a generic 500. Anchor's "Error Code: X" (from
+     * simulation logs) or the raw message goes into a 400 body the frontend
+     * can translate into human feedback.
+     */
+    async send(fn) {
+        try {
+            return await fn();
+        }
+        catch (err) {
+            const logs = err?.logs ?? err?.transactionLogs ?? [];
+            const combined = [err?.message ?? String(err), ...logs].join(" | ");
+            const anchorError = combined.match(/Error Code: (\w+)/)?.[1];
+            throw new common_1.BadRequestException(anchorError ? `Program error: ${anchorError}` : combined.slice(0, 400));
+        }
+    }
     list() {
         return this.txs.listBets();
     }
@@ -51,19 +68,19 @@ let BetsService = class BetsService {
             }
             : undefined;
         const { txBase64, bet } = await this.txs.buildCreateBet(new web3_js_1.PublicKey(wallet.address), request, opening);
-        const signature = await this.wallets.signAndSend(wallet.walletId, txBase64);
+        const signature = await this.send(() => this.wallets.signAndSend(wallet.walletId, txBase64));
         return { bet: bet.toBase58(), signature };
     }
     async stake(betAddress, body) {
         const wallet = this.requireWallet(body?.userKey);
         const txBase64 = await this.txs.buildStake(new web3_js_1.PublicKey(wallet.address), new web3_js_1.PublicKey(betAddress), body.side === "under" ? "under" : "over", Number(body.amount));
-        const signature = await this.wallets.signAndSend(wallet.walletId, txBase64);
+        const signature = await this.send(() => this.wallets.signAndSend(wallet.walletId, txBase64));
         return { signature };
     }
     async claim(betAddress, body) {
         const wallet = this.requireWallet(body?.userKey);
         const txBase64 = await this.txs.buildClaim(new web3_js_1.PublicKey(wallet.address), new web3_js_1.PublicKey(betAddress));
-        const signature = await this.wallets.signAndSend(wallet.walletId, txBase64);
+        const signature = await this.send(() => this.wallets.signAndSend(wallet.walletId, txBase64));
         return { signature };
     }
 };

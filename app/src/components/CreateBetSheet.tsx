@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { api, type Fixture, type Session } from "@/lib/api";
-import { MARKETS, kickoffLabel, lineOf } from "@/lib/format";
+import { MARKETS, fillLabel, kickoffLabel, lineOf } from "@/lib/format";
 import { Button, Sheet } from "./ui";
 
 const GROUPS = Array.from(new Set(MARKETS.map((m) => m.group)));
@@ -36,7 +36,10 @@ export function CreateBetSheet({
   const market = MARKETS.find((m) => m.id === marketId) ?? MARKETS[0];
   const line = threshold ?? market.defaultThreshold;
   const team = { home: fixture?.home ?? "Home", away: fixture?.away ?? "Away" };
-  const fill = (s: string) => s.replace("{home}", team.home).replace("{away}", team.away);
+  const fill = (s: string) => fillLabel(s, team, line);
+  const hasStepper = market.lineKind !== "none";
+  const lineDisplay = market.lineKind === "plus" ? `${line + 1}+` : lineOf(line);
+  const minThreshold = market.lineKind === "plus" ? 1 : 0;
 
   async function submit() {
     if (!fixture) return;
@@ -50,7 +53,7 @@ export function CreateBetSheet({
         statKeyB: market.b,
         op: market.op,
         kind: market.kind,
-        comparison: "greater",
+        comparison: market.comparison,
         threshold: line,
         kickoffTs: fixture.kickoffTs,
         opening: amount > 0 ? { side, amount } : undefined,
@@ -86,7 +89,7 @@ export function CreateBetSheet({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className={market.hasLine ? "" : "col-span-2"}>
+            <div className={hasStepper ? "" : "col-span-2"}>
               <label className={label} htmlFor="market">Market</label>
               <select
                 id="market"
@@ -106,20 +109,20 @@ export function CreateBetSheet({
                 ))}
               </select>
             </div>
-            {market.hasLine && (
+            {hasStepper && (
               <div>
                 <label className={label} htmlFor="line">Line</label>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setThreshold(Math.max(0, line - 1))}
+                    onClick={() => setThreshold(Math.max(minThreshold, line - 1))}
                     className="grid size-10 shrink-0 place-items-center rounded-lg border border-hairline bg-raised text-ink-2 hover:text-ink"
                     aria-label="Lower line"
                   >
                     −
                   </button>
                   <span className="tnum flex-1 rounded-lg border border-hairline bg-raised py-2 text-center font-mono text-sm font-semibold text-ink">
-                    {lineOf(line)}
+                    {lineDisplay}
                   </span>
                   <button
                     type="button"
@@ -135,11 +138,13 @@ export function CreateBetSheet({
           </div>
 
           <p className="rounded-lg bg-raised px-3 py-2 text-xs leading-relaxed text-ink-3">
-            {market.hasLine ? (
+            {market.lineKind === "half" ? (
               <>
                 <span className="text-ink-2">{fill(market.sides[0])} {lineOf(line)}</span> needs {line + 1} or more;
                 exactly {line} goes {fill(market.sides[1]).toLowerCase()}.
               </>
+            ) : market.lineKind === "plus" ? (
+              <>Lands if the margin is <span className="text-ink-2">{line + 1} or more</span>.</>
             ) : market.kind === "bothScore" ? (
               <>Lands only if <span className="text-ink-2">both teams score at least once</span>.</>
             ) : (

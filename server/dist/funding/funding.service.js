@@ -27,11 +27,16 @@ const PUSDC_DRIP = 100n * 10n ** 6n; // 100 pUSDC (6 decimals)
 let FundingService = class FundingService {
     connection;
     funder;
-    statePath = (0, node_path_1.join)(process.cwd(), "funder-state.json");
+    statePath = (0, node_path_1.join)(process.env.DATA_DIR ?? process.cwd(), "funder-state.json");
     mint = null;
     queue = Promise.resolve();
     constructor(connection) {
         this.connection = connection;
+        // Cloud deploys (Railway etc.): secret content via env, state on a volume.
+        if (process.env.FUNDER_SECRET) {
+            this.funder = web3_js_1.Keypair.fromSecretKey(Uint8Array.from(JSON.parse(process.env.FUNDER_SECRET)));
+            return;
+        }
         const keypairPath = process.env.FUNDER_KEYPAIR ?? (0, node_path_1.join)(process.cwd(), "funder-keypair.json");
         if ((0, node_fs_1.existsSync)(keypairPath)) {
             this.funder = web3_js_1.Keypair.fromSecretKey(Uint8Array.from(JSON.parse((0, node_fs_1.readFileSync)(keypairPath, "utf8"))));
@@ -45,6 +50,10 @@ let FundingService = class FundingService {
     async ensureMint() {
         if (this.mint)
             return this.mint;
+        if (process.env.PUSDC_MINT) {
+            this.mint = new web3_js_1.PublicKey(process.env.PUSDC_MINT);
+            return this.mint;
+        }
         if ((0, node_fs_1.existsSync)(this.statePath)) {
             const state = JSON.parse((0, node_fs_1.readFileSync)(this.statePath, "utf8"));
             if (state.pusdcMint) {

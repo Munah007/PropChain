@@ -26,6 +26,9 @@ const RPC_URL = process.env.RPC_URL ?? "https://api.devnet.solana.com";
 const RECONCILE_INTERVAL_MS = Number(process.env.RECONCILE_INTERVAL_MS ?? 30_000);
 
 function loadOrCreateKeypair(path: string): Keypair {
+  if (process.env.KEEPER_SECRET) {
+    return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(process.env.KEEPER_SECRET)));
+  }
   if (existsSync(path)) {
     return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(path, "utf8"))));
   }
@@ -72,6 +75,9 @@ async function main() {
   const keypair = loadOrCreateKeypair(KEYPAIR_PATH);
   const connection = new Connection(RPC_URL, "confirmed");
   const txline = new TxLineClient(NETWORK, CREDS_PATH);
+  if (process.env.TXLINE_JWT && process.env.TXLINE_API_TOKEN) {
+    txline.creds = { jwt: process.env.TXLINE_JWT, apiToken: process.env.TXLINE_API_TOKEN, subTxSig: "" };
+  }
 
   const txoracleIdl = JSON.parse(readFileSync(join(REPO_ROOT, "idls", "txoracle.json"), "utf8"));
   await txline.ensureCredentials(keypair, txoracleIdl);

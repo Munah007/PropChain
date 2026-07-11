@@ -23,11 +23,16 @@ const PUSDC_DRIP = 100n * 10n ** 6n; // 100 pUSDC (6 decimals)
 @Injectable()
 export class FundingService {
   private funder: Keypair;
-  private statePath = join(process.cwd(), "funder-state.json");
+  private statePath = join(process.env.DATA_DIR ?? process.cwd(), "funder-state.json");
   private mint: PublicKey | null = null;
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(@Inject(SOLANA_CONNECTION) private readonly connection: Connection) {
+    // Cloud deploys (Railway etc.): secret content via env, state on a volume.
+    if (process.env.FUNDER_SECRET) {
+      this.funder = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(process.env.FUNDER_SECRET)));
+      return;
+    }
     const keypairPath = process.env.FUNDER_KEYPAIR ?? join(process.cwd(), "funder-keypair.json");
     if (existsSync(keypairPath)) {
       this.funder = Keypair.fromSecretKey(
@@ -44,6 +49,10 @@ export class FundingService {
 
   async ensureMint(): Promise<PublicKey> {
     if (this.mint) return this.mint;
+    if (process.env.PUSDC_MINT) {
+      this.mint = new PublicKey(process.env.PUSDC_MINT);
+      return this.mint;
+    }
     if (existsSync(this.statePath)) {
       const state = JSON.parse(readFileSync(this.statePath, "utf8"));
       if (state.pusdcMint) {

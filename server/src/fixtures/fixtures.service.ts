@@ -28,10 +28,15 @@ export class FixturesService {
 
   async list(): Promise<Fixture[]> {
     if (this.cache && Date.now() - this.cache.at < 60_000) return this.cache.fixtures;
-    if (!existsSync(this.credsPath)) {
-      throw new Error(`TxLINE credentials not found at ${this.credsPath} — run the keeper once first`);
+    let creds: { jwt: string; apiToken: string };
+    if (process.env.TXLINE_JWT && process.env.TXLINE_API_TOKEN) {
+      creds = { jwt: process.env.TXLINE_JWT, apiToken: process.env.TXLINE_API_TOKEN };
+    } else {
+      if (!existsSync(this.credsPath)) {
+        throw new Error(`TxLINE credentials not found at ${this.credsPath} — run the keeper once first`);
+      }
+      creds = JSON.parse(readFileSync(this.credsPath, "utf8"));
     }
-    const creds = JSON.parse(readFileSync(this.credsPath, "utf8"));
     const startEpochDay = Math.floor(Date.now() / 86_400_000) - 3;
     const res = await fetch(
       `${this.apiOrigin}/api/fixtures/snapshot?startEpochDay=${startEpochDay}`,

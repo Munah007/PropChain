@@ -16,7 +16,7 @@ import { FundingService } from "../funding/funding.service";
 
 @Injectable()
 export class SessionService {
-  private usersPath = join(process.cwd(), "users.json");
+  private usersPath = join(process.env.DATA_DIR ?? process.cwd(), "users.json");
   private users: Record<string, UserWallet>;
 
   constructor(

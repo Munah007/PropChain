@@ -31,7 +31,7 @@ let SessionService = class SessionService {
     connection;
     wallets;
     funding;
-    usersPath = (0, node_path_1.join)(process.cwd(), "users.json");
+    usersPath = (0, node_path_1.join)(process.env.DATA_DIR ?? process.cwd(), "users.json");
     users;
     constructor(connection, wallets, funding) {
         this.connection = connection;

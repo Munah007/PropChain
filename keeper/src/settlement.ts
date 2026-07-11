@@ -55,8 +55,22 @@ export class SettlementEngine {
     }
   }
 
+  /** Decode-tolerant account listing (skips pre-migration layouts). */
+  private async allBets() {
+    const raw = await this.program.provider.connection.getProgramAccounts(this.program.programId);
+    const out: { publicKey: PublicKey; account: any }[] = [];
+    for (const { pubkey, account } of raw) {
+      try {
+        out.push({ publicKey: pubkey, account: this.program.coder.accounts.decode("betConfig", account.data) });
+      } catch {
+        /* UserPosition or stale layout — skip */
+      }
+    }
+    return out;
+  }
+
   async reconcile() {
-    const bets = await this.program.account.betConfig.all();
+    const bets = await this.allBets();
     const now = Math.floor(Date.now() / 1000);
     for (const { publicKey, account } of bets) {
       try {
@@ -138,10 +152,13 @@ export class SettlementEngine {
 
   /** Local predicate evaluation — mirrors the on-chain logic for challenge decisions. */
   private evaluate(bet: any, validation: any): boolean {
-    const sum =
-      Number(validation.statToProve.value) + Number(validation.statToProve2?.value ?? 0);
+    const a = Number(validation.statToProve.value);
+    const b = Number(validation.statToProve2?.value ?? 0);
+    if (bet.kind && "bothScore" in bet.kind) return a > 0 && b > 0;
+    const op = bet.op ? Object.keys(bet.op)[0] : null;
+    const combined = op === "subtract" ? a - b : op === "add" ? a + b : a;
     const cmp = Object.keys(bet.comparison)[0];
-    return cmp === "greater" ? sum > bet.threshold : sum < bet.threshold;
+    return cmp === "greater" ? combined > bet.threshold : combined < bet.threshold;
   }
 
   private async finalize(address: PublicKey) {

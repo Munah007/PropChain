@@ -8,6 +8,7 @@ import { api, type Bet, type Fixture, type Position, type Session } from "@/lib/
 import {
   betTitle,
   friendlyError,
+  sideLabels,
   explorerUrl,
   kickoffLabel,
   matchup,
@@ -47,6 +48,8 @@ export function BetDetailSheet({
   const [lastSig, setLastSig] = useState<string | null>(null);
 
   if (!bet) return null;
+  const labels = sideLabels(bet, fixtures);
+  const labelOf = (s: "over" | "under") => (s === "over" ? labels.over : labels.under);
   const now = Math.floor(Date.now() / 1000);
   const stakeable = bet.status === "open" && now < bet.kickoffTs;
   const winningSide = bet.result === null ? null : bet.result ? "over" : "under";
@@ -87,7 +90,7 @@ export function BetDetailSheet({
     {
       label: "Settlement proposed",
       detail: bet.pending
-        ? `Keeper submitted a TxLINE Merkle proof — verdict ${bet.pending.result ? "Over" : "Under"}`
+        ? `Keeper submitted a TxLINE Merkle proof — verdict “${bet.pending.result ? labels.over : labels.under}”`
         : bet.status === "settled" || bet.status === "voided"
           ? "Proof verified via CPI into TxLINE's validate_stat"
           : "Waiting for the final whistle — proofs from live match phases are rejected on-chain",
@@ -98,7 +101,7 @@ export function BetDetailSheet({
       label: bet.status === "voided" ? "Voided" : "Settled",
       detail:
         bet.status === "settled"
-          ? `${bet.result ? "Over" : "Under"} won — winners claim from the pool`
+          ? `“${bet.result ? labels.over : labels.under}” won — winners claim from the pool`
           : bet.status === "voided"
             ? "All stakes refundable"
             : bet.pending
@@ -109,7 +112,7 @@ export function BetDetailSheet({
   ];
 
   return (
-    <Sheet open onClose={onClose} title={betTitle(bet)}>
+    <Sheet open onClose={onClose} title={betTitle(bet, fixtures)}>
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <p className="text-sm text-ink-2">{matchup(bet, fixtures)}</p>
@@ -126,18 +129,18 @@ export function BetDetailSheet({
                 <button
                   onClick={() => setSide("over")}
                   disabled={lockedSide === "under"}
-                  title={lockedSide === "under" ? "You're on Under — one side per bet" : undefined}
-                  className={`flex-1 py-2 text-sm font-semibold transition ${effectiveSide === "over" ? "bg-over text-white" : "text-ink-3 hover:text-ink"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-ink-3`}
+                  title={lockedSide === "under" ? `You're on “${labels.under}” — one side per bet` : undefined}
+                  className={`flex-1 truncate px-2 py-2 text-sm font-semibold transition ${effectiveSide === "over" ? "bg-over text-white" : "text-ink-3 hover:text-ink"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-ink-3`}
                 >
-                  Over
+                  {labels.over}
                 </button>
                 <button
                   onClick={() => setSide("under")}
                   disabled={lockedSide === "over"}
-                  title={lockedSide === "over" ? "You're on Over — one side per bet" : undefined}
-                  className={`flex-1 py-2 text-sm font-semibold transition ${effectiveSide === "under" ? "bg-under text-white" : "text-ink-3 hover:text-ink"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-ink-3`}
+                  title={lockedSide === "over" ? `You're on “${labels.over}” — one side per bet` : undefined}
+                  className={`flex-1 truncate px-2 py-2 text-sm font-semibold transition ${effectiveSide === "under" ? "bg-under text-white" : "text-ink-3 hover:text-ink"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-ink-3`}
                 >
-                  Under
+                  {labels.under}
                 </button>
               </div>
               <input
@@ -151,8 +154,8 @@ export function BetDetailSheet({
               <Button
                 onClick={() =>
                   session
-                    ? run("stake", `Staked ${amount} pUSDC on ${effectiveSide === "over" ? "Over" : "Under"}`, () => api.stake(bet.address, { userKey: session.userKey, side: effectiveSide, amount }))
-                    : onRequireAuth(`stake ${amount} pUSDC on ${effectiveSide === "over" ? "Over" : "Under"}`)
+                    ? run("stake", `Staked ${amount} pUSDC on “${labelOf(effectiveSide)}”`, () => api.stake(bet.address, { userKey: session.userKey, side: effectiveSide, amount }))
+                    : onRequireAuth(`stake ${amount} pUSDC on “${labelOf(effectiveSide)}”`)
                 }
                 disabled={busy !== null || amount <= 0}
               >
@@ -165,16 +168,16 @@ export function BetDetailSheet({
                 <span className={`font-semibold ${effectiveSide === "over" ? "text-over" : "text-under"}`}>
                   {money(payoutIfWins(bet, effectiveSide, amount))} pUSDC
                 </span>{" "}
-                if {effectiveSide === "over" ? "Over" : "Under"} lands (×
+                if “{labelOf(effectiveSide)}” lands (×
                 {(payoutIfWins(bet, effectiveSide, amount) / amount).toFixed(2)})
                 {pusdc(effectiveSide === "over" ? bet.underTotal : bet.overTotal) === 0 && (
-                  <span className="text-ink-3"> — grows as {effectiveSide === "over" ? "Under" : "Over"} fills</span>
+                  <span className="text-ink-3"> — grows as “{labelOf(effectiveSide === "over" ? "under" : "over")}” fills</span>
                 )}
               </p>
             )}
             {position && (
               <p className="mt-1.5 text-xs text-ink-3">
-                Your position: {money(pusdc(position.amount))} pUSDC on {position.side} — the other side is locked (one side per bet).
+                Your position: {money(pusdc(position.amount))} pUSDC on “{labelOf(position.side)}” — the other side is locked (one side per bet).
               </p>
             )}
           </div>

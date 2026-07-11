@@ -20,8 +20,8 @@ pub enum PropChainError {
     StatKeyMismatch,
     #[msg("Proof is not from a final match phase")]
     ProofNotFinal,
-    #[msg("Threshold exceeds oracle range")]
-    ThresholdTooLarge,
+    #[msg("Invalid market configuration")]
+    InvalidMarket,
     #[msg("Challenge proof must be strictly later than the pending one")]
     ProofNotLater,
     #[msg("Challenge window has not elapsed")]

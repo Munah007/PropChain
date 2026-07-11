@@ -17,10 +17,27 @@ pub const FINAL_STAT_PERIODS: [i32; 2] = [100, 0];
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
 pub enum Comparison {
-    /// Over wins iff stat value (or sum) is strictly greater than threshold.
+    /// Over wins iff stat value (or combination) is strictly greater than threshold.
     Greater,
     /// Over wins iff strictly less. ("Over" always denotes the predicate-true side.)
     Less,
+}
+
+/// How two stats combine before the comparison (mirrors the oracle's
+/// BinaryExpression). Add → totals; Subtract → margins/winner markets.
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
+pub enum StatOp {
+    Add,
+    Subtract,
+}
+
+/// Market shape. Line = single predicate over one or two combined stats
+/// (totals, team totals, winner via Subtract > 0, margins). BothScore = GG:
+/// both stats must individually be > 0 (two oracle validations, ANDed).
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
+pub enum MarketKind {
+    Line,
+    BothScore,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
@@ -55,12 +72,16 @@ pub struct BetConfig {
     pub nonce: u64,
     /// TxLINE fixture id (e.g. 18209181).
     pub fixture_id: u64,
-    /// Period-encoded TxLINE stat key.
+    /// TxLINE base stat key (1..=8).
     pub stat_key_a: u16,
-    /// Optional second stat key; when present the predicate is Add(a, b).
+    /// Optional second stat key, combined via `op`.
     pub stat_key_b: Option<u16>,
+    /// Required iff stat_key_b is present (Line markets).
+    pub op: Option<StatOp>,
+    pub kind: MarketKind,
     pub comparison: Comparison,
-    pub threshold: u32,
+    /// i32 to allow negative margins (oracle predicate range).
+    pub threshold: i32,
     /// Fixture kickoff (unix seconds). Staking closes here.
     pub kickoff_ts: i64,
     /// kickoff_ts + VOID_TIMELOCK_SECS; permissionless void allowed after.

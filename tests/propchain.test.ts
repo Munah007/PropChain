@@ -55,6 +55,8 @@ const baseArgs = (nonce: number, overrides: Record<string, unknown> = {}) => ({
   fixtureId: new BN(18209181),
   statKeyA: 7, // home corners
   statKeyB: 8, // away corners → Add(7, 8) = total corners
+  op: { add: {} },
+  kind: { line: {} },
   comparison: { greater: {} },
   threshold: 10,
   kickoffTs: new BN(Math.floor(Date.now() / 1000) + 3600),

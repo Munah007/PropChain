@@ -8,7 +8,8 @@ use crate::oracle::txoracle::{
     types::{BinaryExpression, Comparison as OracleComparison, ProofNode, ScoresBatchSummary, StatTerm, TraderPredicate},
 };
 use crate::state::{
-    BetConfig, BetStatus, Comparison, PendingSettlement, CHALLENGE_WINDOW_SECS, FINAL_STAT_PERIODS,
+    BetConfig, BetStatus, Comparison, MarketKind, PendingSettlement, StatOp,
+    CHALLENGE_WINDOW_SECS, FINAL_STAT_PERIODS,
 };
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
@@ -71,17 +72,13 @@ pub fn handler(ctx: Context<ProposeSettlement>, args: ProposeSettlementArgs) -> 
     // proves whatever stat it is handed; binding it to the immutable bet
     // config is on us.
     check_stat_binding(&args.stat_a, bet.stat_key_a)?;
-    let op = match bet.stat_key_b {
+    match bet.stat_key_b {
         Some(key_b) => {
             let stat_b = args.stat_b.as_ref().ok_or(PropChainError::StatKeyMismatch)?;
             check_stat_binding(stat_b, key_b)?;
-            Some(BinaryExpression::Add)
         }
-        None => {
-            require!(args.stat_b.is_none(), PropChainError::StatKeyMismatch);
-            None
-        }
-    };
+        None => require!(args.stat_b.is_none(), PropChainError::StatKeyMismatch),
+    }
 
     // Latest proof wins: a challenge must be anchored at a strictly later
     // event timestamp than the pending proposal. max_timestamp is part of the
@@ -94,32 +91,62 @@ pub fn handler(ctx: Context<ProposeSettlement>, args: ProposeSettlementArgs) -> 
         require!(proof_ts > pending.proof_ts, PropChainError::ProofNotLater);
     }
 
-    // Predicate comes from immutable bet config — never from the caller.
-    let predicate = TraderPredicate {
-        threshold: bet.threshold as i32,
-        comparison: match bet.comparison {
-            Comparison::Greater => OracleComparison::GreaterThan,
-            Comparison::Less => OracleComparison::LessThan,
-        },
+    // Predicates come from immutable bet config — never from the caller.
+    let validate = |predicate: TraderPredicate,
+                    stat_a: StatTerm,
+                    stat_b: Option<StatTerm>,
+                    op: Option<BinaryExpression>|
+     -> Result<bool> {
+        Ok(txoracle::cpi::validate_stat(
+            CpiContext::new(
+                ctx.accounts.txoracle_program.to_account_info(),
+                ValidateStat {
+                    daily_scores_merkle_roots: ctx
+                        .accounts
+                        .daily_scores_merkle_roots
+                        .to_account_info(),
+                },
+            ),
+            args.ts,
+            args.fixture_summary.clone(),
+            args.fixture_proof.clone(),
+            args.main_tree_proof.clone(),
+            predicate,
+            stat_a,
+            stat_b,
+            op,
+        )?
+        .get())
     };
 
-    let verdict = txoracle::cpi::validate_stat(
-        CpiContext::new(
-            ctx.accounts.txoracle_program.to_account_info(),
-            ValidateStat {
-                daily_scores_merkle_roots: ctx.accounts.daily_scores_merkle_roots.to_account_info(),
-            },
-        ),
-        args.ts,
-        args.fixture_summary,
-        args.fixture_proof,
-        args.main_tree_proof,
-        predicate,
-        args.stat_a,
-        args.stat_b,
-        op,
-    )?
-    .get();
+    let verdict = match bet.kind {
+        MarketKind::Line => {
+            let predicate = TraderPredicate {
+                threshold: bet.threshold,
+                comparison: match bet.comparison {
+                    Comparison::Greater => OracleComparison::GreaterThan,
+                    Comparison::Less => OracleComparison::LessThan,
+                },
+            };
+            let op = bet.op.map(|o| match o {
+                StatOp::Add => BinaryExpression::Add,
+                StatOp::Subtract => BinaryExpression::Subtract,
+            });
+            validate(predicate, args.stat_a, args.stat_b, op)?
+        }
+        // GG: each team's stat must individually exceed zero. Two proofs,
+        // two oracle validations, ANDed by this program.
+        MarketKind::BothScore => {
+            let gt_zero = || TraderPredicate {
+                threshold: 0,
+                comparison: OracleComparison::GreaterThan,
+            };
+            let stat_b = args.stat_b.ok_or(PropChainError::StatKeyMismatch)?;
+            let a_scored = validate(gt_zero(), args.stat_a, None, None)?;
+            let b_scored = validate(gt_zero(), stat_b, None, None)?;
+            a_scored && b_scored
+        }
+    };
 
     let challenge_deadline_ts = now
         .checked_add(CHALLENGE_WINDOW_SECS)

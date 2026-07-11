@@ -51,7 +51,9 @@ export function StatusPill({ status, live }: { status: Bet["status"]; live?: boo
 }
 
 /** Implied-odds split meter. Over = blue (left), Under = aqua (right). */
-export function OddsMeter({ bet }: { bet: Bet }) {
+export function OddsMeter({ bet, labels }: { bet: Bet; labels?: { over: string; under: string } }) {
+  const overLabel = labels?.over ?? "Over";
+  const underLabel = labels?.under ?? "Under";
   const odds = impliedOdds(bet);
   const overTweened = useTweened(odds.over * 100);
   const overPct = Math.round(overTweened);
@@ -61,7 +63,7 @@ export function OddsMeter({ bet }: { bet: Bet }) {
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3">
             <span className="mr-1.5 inline-block size-2 rounded-[2px] bg-over align-baseline" aria-hidden />
-            Over
+            {overLabel}
           </p>
           <p className="font-mono text-sm font-semibold text-ink">
             {overPct}%
@@ -70,7 +72,7 @@ export function OddsMeter({ bet }: { bet: Bet }) {
         </div>
         <div className="text-right">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3">
-            Under
+            {underLabel}
             <span className="ml-1.5 inline-block size-2 rounded-[2px] bg-under align-baseline" aria-hidden />
           </p>
           <p className="font-mono text-sm font-semibold text-ink">
@@ -79,7 +81,7 @@ export function OddsMeter({ bet }: { bet: Bet }) {
           </p>
         </div>
       </div>
-      <div className="mt-1.5 flex h-1.5 w-full gap-[2px]" role="img" aria-label={`Over ${overPct}%, Under ${100 - overPct}%`}>
+      <div className="mt-1.5 flex h-1.5 w-full gap-[2px]" role="img" aria-label={`${overLabel} ${overPct}%, ${underLabel} ${100 - overPct}%`}>
         <div className="rounded-l-[4px] bg-over" style={{ width: `${Math.max(overTweened, 2)}%` }} />
         <div className="rounded-r-[4px] bg-under" style={{ width: `${Math.max(100 - overTweened, 2)}%` }} />
       </div>

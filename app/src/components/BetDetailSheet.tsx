@@ -7,6 +7,7 @@ import { useState } from "react";
 import { api, type Bet, type Fixture, type Position, type Session } from "@/lib/api";
 import {
   betTitle,
+  friendlyError,
   explorerUrl,
   kickoffLabel,
   matchup,
@@ -37,6 +38,9 @@ export function BetDetailSheet({
   onRequireAuth: (intent: string) => void;
 }) {
   const [side, setSide] = useState<"over" | "under">(initialSide ?? "over");
+  // an existing position locks you to its side (mirrors the on-chain rule)
+  const lockedSide = position && !position.claimed ? position.side : null;
+  const effectiveSide = lockedSide ?? side;
   const [amount, setAmount] = useState(10);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +71,7 @@ export function BetDetailSheet({
       setLastSig(signature);
       onChanged(message, signature);
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendlyError((e as Error).message));
     } finally {
       setBusy(null);
     }
@@ -121,13 +125,17 @@ export function BetDetailSheet({
               <div className="flex flex-1 overflow-hidden rounded-lg border border-hairline">
                 <button
                   onClick={() => setSide("over")}
-                  className={`flex-1 py-2 text-sm font-semibold ${side === "over" ? "bg-over text-white" : "text-ink-3 hover:text-ink"}`}
+                  disabled={lockedSide === "under"}
+                  title={lockedSide === "under" ? "You're on Under — one side per bet" : undefined}
+                  className={`flex-1 py-2 text-sm font-semibold transition ${effectiveSide === "over" ? "bg-over text-white" : "text-ink-3 hover:text-ink"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-ink-3`}
                 >
                   Over
                 </button>
                 <button
                   onClick={() => setSide("under")}
-                  className={`flex-1 py-2 text-sm font-semibold ${side === "under" ? "bg-under text-white" : "text-ink-3 hover:text-ink"}`}
+                  disabled={lockedSide === "over"}
+                  title={lockedSide === "over" ? "You're on Over — one side per bet" : undefined}
+                  className={`flex-1 py-2 text-sm font-semibold transition ${effectiveSide === "under" ? "bg-under text-white" : "text-ink-3 hover:text-ink"} disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-ink-3`}
                 >
                   Under
                 </button>
@@ -143,8 +151,8 @@ export function BetDetailSheet({
               <Button
                 onClick={() =>
                   session
-                    ? run("stake", `Staked ${amount} pUSDC on ${side === "over" ? "Over" : "Under"}`, () => api.stake(bet.address, { userKey: session.userKey, side, amount }))
-                    : onRequireAuth(`stake ${amount} pUSDC on ${side === "over" ? "Over" : "Under"}`)
+                    ? run("stake", `Staked ${amount} pUSDC on ${effectiveSide === "over" ? "Over" : "Under"}`, () => api.stake(bet.address, { userKey: session.userKey, side: effectiveSide, amount }))
+                    : onRequireAuth(`stake ${amount} pUSDC on ${effectiveSide === "over" ? "Over" : "Under"}`)
                 }
                 disabled={busy !== null || amount <= 0}
               >
@@ -154,19 +162,19 @@ export function BetDetailSheet({
             {amount > 0 && (
               <p className="tnum mt-2.5 font-mono text-xs text-ink-2">
                 Stake {money(amount)} → get{" "}
-                <span className={`font-semibold ${side === "over" ? "text-over" : "text-under"}`}>
-                  {money(payoutIfWins(bet, side, amount))} pUSDC
+                <span className={`font-semibold ${effectiveSide === "over" ? "text-over" : "text-under"}`}>
+                  {money(payoutIfWins(bet, effectiveSide, amount))} pUSDC
                 </span>{" "}
-                if {side === "over" ? "Over" : "Under"} lands (×
-                {(payoutIfWins(bet, side, amount) / amount).toFixed(2)})
-                {pusdc(side === "over" ? bet.underTotal : bet.overTotal) === 0 && (
-                  <span className="text-ink-3"> — grows as {side === "over" ? "Under" : "Over"} fills</span>
+                if {effectiveSide === "over" ? "Over" : "Under"} lands (×
+                {(payoutIfWins(bet, effectiveSide, amount) / amount).toFixed(2)})
+                {pusdc(effectiveSide === "over" ? bet.underTotal : bet.overTotal) === 0 && (
+                  <span className="text-ink-3"> — grows as {effectiveSide === "over" ? "Under" : "Over"} fills</span>
                 )}
               </p>
             )}
             {position && (
               <p className="mt-1.5 text-xs text-ink-3">
-                Your position: {money(pusdc(position.amount))} pUSDC on {position.side} — top-ups must stay on the same side.
+                Your position: {money(pusdc(position.amount))} pUSDC on {position.side} — the other side is locked (one side per bet).
               </p>
             )}
           </div>

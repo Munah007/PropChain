@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, type Fixture, type Session } from "@/lib/api";
 import { MARKETS, fillLabel, kickoffLabel, lineOf } from "@/lib/format";
 import { Button, Sheet } from "./ui";
@@ -12,12 +12,14 @@ export function CreateBetSheet({
   onClose,
   session,
   fixtures,
+  initialFixtureId,
   onCreated,
 }: {
   open: boolean;
   onClose: () => void;
   session: Session;
   fixtures: Fixture[];
+  initialFixtureId?: number | null;
   onCreated: (message?: string, signature?: string) => void;
 }) {
   const upcoming = useMemo(
@@ -25,6 +27,9 @@ export function CreateBetSheet({
     [fixtures]
   );
   const [fixtureId, setFixtureId] = useState<number | null>(null);
+  useEffect(() => {
+    if (open && initialFixtureId != null) setFixtureId(initialFixtureId);
+  }, [open, initialFixtureId]);
   const [marketId, setMarketId] = useState(MARKETS[0].id);
   const [threshold, setThreshold] = useState<number | null>(null);
   const [side, setSide] = useState<"over" | "under">("over");

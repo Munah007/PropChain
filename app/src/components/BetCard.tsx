@@ -13,11 +13,14 @@ export function BetCard({
   fixtures,
   position,
   onOpen,
+  hideMatchup = false,
 }: {
   bet: Bet;
   fixtures: Fixture[];
   position?: Position;
   onOpen: (side?: "over" | "under") => void;
+  /** true when rendered inside a MatchCard — the match header already says it */
+  hideMatchup?: boolean;
 }) {
   const now = Math.floor(Date.now() / 1000);
   const stakeable = bet.status === "open" && now < bet.kickoffTs;
@@ -32,12 +35,14 @@ export function BetCard({
       <button onClick={() => onOpen()} className="block w-full p-4 pb-3 text-left sm:p-5 sm:pb-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3">
-              {matchup(bet, fixtures)}
-              <span className="mx-1.5 text-ink-3/50">·</span>
-              {kickoffLabel(bet.kickoffTs)}
-            </p>
-            <h3 className="mt-1 text-lg font-bold tracking-tight text-ink">{betTitle(bet, fixtures)}</h3>
+            {!hideMatchup && (
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3">
+                {matchup(bet, fixtures)}
+                <span className="mx-1.5 text-ink-3/50">·</span>
+                {kickoffLabel(bet.kickoffTs)}
+              </p>
+            )}
+            <h3 className={`text-lg font-bold tracking-tight text-ink ${hideMatchup ? "" : "mt-1"}`}>{betTitle(bet, fixtures)}</h3>
           </div>
           <StatusPill status={bet.status} live={inPlay} />
         </div>

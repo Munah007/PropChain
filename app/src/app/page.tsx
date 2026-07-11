@@ -8,6 +8,7 @@ import { AuthSheet } from "@/components/AuthSheet";
 import { BetCard } from "@/components/BetCard";
 import { CreateBetSheet } from "@/components/CreateBetSheet";
 import { BetDetailSheet } from "@/components/BetDetailSheet";
+import { Toast, type ToastData } from "@/components/ui";
 
 const STATUS_ORDER: Record<Bet["status"], number> = {
   open: 0,
@@ -48,6 +49,14 @@ export default function Home() {
   const [selected, setSelected] = useState<{ address: string; side?: "over" | "under" } | null>(null);
   const [auth, setAuth] = useState<{ open: boolean; intent: string | null }>({ open: false, intent: null });
   const pendingAction = useRef<(() => void) | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function celebrate(message: string, signature?: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ message, signature });
+    toastTimer.current = setTimeout(() => setToast(null), 6000);
+  }
 
   const sorted = useMemo(
     () =>
@@ -59,10 +68,11 @@ export default function Home() {
   const positionByBet = useMemo(() => new Map((positions ?? []).map((p) => [p.bet, p])), [positions]);
   const selectedBet = sorted.find((b) => b.address === selected?.address) ?? null;
 
-  function onChainChange() {
+  function onChainChange(message?: string, signature?: string) {
     refetchBets();
     refetchPositions();
     if (session) refresh(session.userKey);
+    if (message) celebrate(message, signature);
   }
 
   /** Gate an action behind auth only at the moment it needs a wallet. */
@@ -195,6 +205,7 @@ export default function Home() {
         </footer>
       </div>
 
+      <Toast toast={toast} />
       <AuthSheet
         open={auth.open}
         intent={auth.intent}

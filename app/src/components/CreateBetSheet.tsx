@@ -16,7 +16,7 @@ export function CreateBetSheet({
   onClose: () => void;
   session: Session;
   fixtures: Fixture[];
-  onCreated: () => void;
+  onCreated: (message?: string, signature?: string) => void;
 }) {
   const upcoming = useMemo(
     () => fixtures.filter((f) => f.kickoffTs > Math.floor(Date.now() / 1000) + 60),
@@ -38,7 +38,7 @@ export function CreateBetSheet({
     setBusy(true);
     setError(null);
     try {
-      await api.createBet({
+      const result = await api.createBet({
         userKey: session.userKey,
         fixtureId: fixture.fixtureId,
         statKeyA: stat.a,
@@ -48,7 +48,7 @@ export function CreateBetSheet({
         kickoffTs: fixture.kickoffTs,
         opening: amount > 0 ? { side, amount } : undefined,
       });
-      onCreated();
+      onCreated("Bet is live on the board", result.signature);
       onClose();
     } catch (e) {
       setError((e as Error).message);

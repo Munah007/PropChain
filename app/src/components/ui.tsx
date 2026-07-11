@@ -4,9 +4,32 @@
 // the Over/Under odds meter (thin two-segment bar, 2px surface gap, rounded
 // data ends, direct labels in ink), and a ticking countdown.
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Bet } from "@/lib/api";
 import { impliedOdds, money, timeUntil } from "@/lib/format";
+
+/** rAF tween toward a target value — odds roll instead of jumping. */
+export function useTweened(target: number, ms = 350): number {
+  const [value, setValue] = useState(target);
+  const fromRef = useRef(target);
+  useEffect(() => {
+    const from = fromRef.current;
+    if (from === target) return;
+    const start = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / ms, 1);
+      const eased = 1 - (1 - t) ** 3;
+      const v = from + (target - from) * eased;
+      setValue(v);
+      fromRef.current = v;
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return value;
+}
 
 export const STATUS_META: Record<Bet["status"], { label: string; dot: string }> = {
   open: { label: "Open", dot: "bg-good" },
@@ -30,7 +53,8 @@ export function StatusPill({ status, live }: { status: Bet["status"]; live?: boo
 /** Implied-odds split meter. Over = blue (left), Under = aqua (right). */
 export function OddsMeter({ bet }: { bet: Bet }) {
   const odds = impliedOdds(bet);
-  const overPct = Math.round(odds.over * 100);
+  const overTweened = useTweened(odds.over * 100);
+  const overPct = Math.round(overTweened);
   return (
     <div>
       <div className="flex items-end justify-between">
@@ -56,8 +80,8 @@ export function OddsMeter({ bet }: { bet: Bet }) {
         </div>
       </div>
       <div className="mt-1.5 flex h-1.5 w-full gap-[2px]" role="img" aria-label={`Over ${overPct}%, Under ${100 - overPct}%`}>
-        <div className="rounded-l-[4px] bg-over" style={{ width: `${Math.max(odds.over * 100, 2)}%` }} />
-        <div className="rounded-r-[4px] bg-under" style={{ width: `${Math.max(odds.under * 100, 2)}%` }} />
+        <div className="rounded-l-[4px] bg-over" style={{ width: `${Math.max(overTweened, 2)}%` }} />
+        <div className="rounded-r-[4px] bg-under" style={{ width: `${Math.max(100 - overTweened, 2)}%` }} />
       </div>
     </div>
   );
@@ -111,6 +135,36 @@ export function Sheet({
           </button>
         </div>
         {children}
+      </div>
+    </div>
+  );
+}
+
+export interface ToastData {
+  message: string;
+  signature?: string;
+}
+
+/** Trade confirmation moment: checkmark, message, tx link; slides in from below. */
+export function Toast({ toast }: { toast: ToastData | null }) {
+  if (!toast) return null;
+  return (
+    <div className="fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4">
+      <div className="toast-in flex items-center gap-3 rounded-2xl border border-good/40 bg-raised px-5 py-3.5 shadow-[0_16px_48px_rgba(0,0,0,0.5)]">
+        <span className="grid size-6 place-items-center rounded-full bg-good/20 text-sm text-good" aria-hidden>
+          ✓
+        </span>
+        <p className="text-sm font-semibold text-ink">{toast.message}</p>
+        {toast.signature && (
+          <a
+            className="font-mono text-xs text-over hover:underline"
+            href={`https://explorer.solana.com/tx/${toast.signature}?cluster=devnet`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            view tx ↗
+          </a>
+        )}
       </div>
     </div>
   );

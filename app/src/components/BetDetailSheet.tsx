@@ -33,7 +33,7 @@ export function BetDetailSheet({
   position?: Position;
   initialSide?: "over" | "under";
   onClose: () => void;
-  onChanged: () => void;
+  onChanged: (message?: string, signature?: string) => void;
   onRequireAuth: (intent: string) => void;
 }) {
   const [side, setSide] = useState<"over" | "under">(initialSide ?? "over");
@@ -59,13 +59,13 @@ export function BetDetailSheet({
         ? pusdc(position!.amount)
         : 0;
 
-  async function run(label: string, fn: () => Promise<{ signature: string }>) {
+  async function run(label: string, message: string, fn: () => Promise<{ signature: string }>) {
     setBusy(label);
     setError(null);
     try {
       const { signature } = await fn();
       setLastSig(signature);
-      onChanged();
+      onChanged(message, signature);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -143,7 +143,7 @@ export function BetDetailSheet({
               <Button
                 onClick={() =>
                   session
-                    ? run("stake", () => api.stake(bet.address, { userKey: session.userKey, side, amount }))
+                    ? run("stake", `Staked ${amount} pUSDC on ${side === "over" ? "Over" : "Under"}`, () => api.stake(bet.address, { userKey: session.userKey, side, amount }))
                     : onRequireAuth(`stake ${amount} pUSDC on ${side === "over" ? "Over" : "Under"}`)
                 }
                 disabled={busy !== null || amount <= 0}
@@ -180,7 +180,7 @@ export function BetDetailSheet({
               </p>
               <p className="tnum text-xs text-ink-2">{money(payout)} pUSDC</p>
             </div>
-            <Button onClick={() => run("claim", () => api.claim(bet.address, session!.userKey))} disabled={busy !== null}>
+            <Button onClick={() => run("claim", `Claimed ${money(payout)} pUSDC`, () => api.claim(bet.address, session!.userKey))} disabled={busy !== null}>
               {busy === "claim" ? "Claiming…" : "Claim"}
             </Button>
           </div>

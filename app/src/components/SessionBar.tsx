@@ -23,7 +23,7 @@ export function SessionBar({
   return (
     <div className="flex items-center gap-2.5">
       <div className="flex items-center gap-2.5 rounded-full border border-hairline bg-surface py-1.5 pl-4 pr-3">
-        <span className="tnum text-sm font-semibold text-ink">
+        <span className="tnum font-mono text-sm font-semibold text-ink">
           {money(session.pusdc)} <span className="text-xs font-normal text-ink-3">pUSDC</span>
         </span>
         <span className="h-3.5 w-px bg-hairline" aria-hidden />

@@ -48,6 +48,18 @@ export function impliedOdds(bet: Bet): { over: number; under: number; total: num
   };
 }
 
+/**
+ * Concrete payout if `side` wins after you add `amount`:
+ * your share = amount / (side_total + amount) × (pool + amount).
+ */
+export function payoutIfWins(bet: Bet, side: "over" | "under", amount: number): number {
+  if (amount <= 0) return 0;
+  const over = pusdc(bet.overTotal);
+  const under = pusdc(bet.underTotal);
+  const sideTotal = (side === "over" ? over : under) + amount;
+  return (amount / sideTotal) * (over + under + amount);
+}
+
 /** Winner payout multiple for a side, given current pools ("x1.8"). */
 export function payoutMultiple(bet: Bet, side: "over" | "under"): number | null {
   const over = pusdc(bet.overTotal);

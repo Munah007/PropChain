@@ -7,8 +7,19 @@
 }
 
 body {
-  background: #0d0d0d;
-  color: #ffffff;
+  background:
+    radial-gradient(90% 45% at 50% -8%, rgba(37, 78, 155, 0.22) 0%, transparent 65%),
+    #080d16;
+  background-attachment: fixed;
+  color: #f4f7fc;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.live-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
 }
 
 /* countdowns, balances, odds — anything that must not jitter as it ticks */

@@ -91,7 +91,7 @@ export default function Home() {
         className="pointer-events-none absolute inset-x-0 top-0 h-[420px]"
         style={{
           background:
-            "radial-gradient(560px 300px at 30% 0%, rgba(57,135,229,0.14), transparent 70%), radial-gradient(480px 260px at 80% 0%, rgba(25,158,112,0.08), transparent 70%)",
+            "radial-gradient(600px 320px at 25% 0%, rgba(57,135,229,0.10), transparent 70%)",
         }}
       />
 

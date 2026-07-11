@@ -139,6 +139,13 @@ export function CreateBetSheet({
             </div>
           </div>
 
+          {amount > 0 && (
+            <p className="tnum -mt-1 font-mono text-xs text-ink-2">
+              You open the {side === "over" ? "Over" : "Under"} pool with {amount} pUSDC — payout
+              grows as the other side fills.
+            </p>
+          )}
+
           {error && <p className="text-sm text-critical">{error}</p>}
 
           <Button onClick={submit} disabled={busy || !fixture} className="w-full py-3">

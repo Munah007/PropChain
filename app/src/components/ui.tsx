@@ -15,10 +15,12 @@ export const STATUS_META: Record<Bet["status"], { label: string; dot: string }> 
   voided: { label: "Voided", dot: "bg-serious" },
 };
 
-export function StatusPill({ status }: { status: Bet["status"] }) {
-  const meta = STATUS_META[status];
+export function StatusPill({ status, live }: { status: Bet["status"]; live?: boolean }) {
+  const meta = live
+    ? { label: "Live", dot: "bg-critical live-dot" }
+    : STATUS_META[status];
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-raised px-2.5 py-0.5 text-xs font-medium text-ink-2">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-raised px-2.5 py-0.5 text-xs font-semibold text-ink-2">
       <span className={`size-1.5 rounded-full ${meta.dot}`} aria-hidden />
       {meta.label}
     </span>
@@ -31,17 +33,29 @@ export function OddsMeter({ bet }: { bet: Bet }) {
   const overPct = Math.round(odds.over * 100);
   return (
     <div>
-      <div className="flex items-baseline justify-between text-xs">
-        <span className="text-ink-2">
-          <span className="mr-1.5 inline-block size-2 rounded-[2px] bg-over align-baseline" aria-hidden />
-          Over {overPct}% · {money(odds.over === 0.5 && odds.total === 0 ? 0 : (odds.total * odds.over))} pUSDC
-        </span>
-        <span className="text-ink-2">
-          {money(odds.total * odds.under)} pUSDC · {100 - overPct}% Under
-          <span className="ml-1.5 inline-block size-2 rounded-[2px] bg-under align-baseline" aria-hidden />
-        </span>
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3">
+            <span className="mr-1.5 inline-block size-2 rounded-[2px] bg-over align-baseline" aria-hidden />
+            Over
+          </p>
+          <p className="font-mono text-sm font-semibold text-ink">
+            {overPct}%
+            <span className="ml-1.5 text-xs font-normal text-ink-3">{money(odds.total * odds.over)} pUSDC</span>
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3">
+            Under
+            <span className="ml-1.5 inline-block size-2 rounded-[2px] bg-under align-baseline" aria-hidden />
+          </p>
+          <p className="font-mono text-sm font-semibold text-ink">
+            <span className="mr-1.5 text-xs font-normal text-ink-3">{money(odds.total * odds.under)} pUSDC</span>
+            {100 - overPct}%
+          </p>
+        </div>
       </div>
-      <div className="mt-1.5 flex h-2 w-full gap-[2px]" role="img" aria-label={`Over ${overPct}%, Under ${100 - overPct}%`}>
+      <div className="mt-1.5 flex h-1.5 w-full gap-[2px]" role="img" aria-label={`Over ${overPct}%, Under ${100 - overPct}%`}>
         <div className="rounded-l-[4px] bg-over" style={{ width: `${Math.max(odds.over * 100, 2)}%` }} />
         <div className="rounded-r-[4px] bg-under" style={{ width: `${Math.max(odds.under * 100, 2)}%` }} />
       </div>
@@ -56,7 +70,7 @@ export function Countdown({ ts, prefix }: { ts: number; prefix?: string }) {
     return () => clearInterval(id);
   }, []);
   return (
-    <span className="tnum">
+    <span className="tnum font-mono">
       {prefix}
       {timeUntil(ts)}
     </span>

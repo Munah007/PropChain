@@ -21,6 +21,7 @@ export function BetCard({
 }) {
   const now = Math.floor(Date.now() / 1000);
   const stakeable = bet.status === "open" && now < bet.kickoffTs;
+  const inPlay = bet.status === "open" && now >= bet.kickoffTs;
   const overX = payoutMultiple(bet, "over");
   const underX = payoutMultiple(bet, "under");
   const settledOrPending = bet.status !== "open";
@@ -37,14 +38,14 @@ export function BetCard({
             </p>
             <h3 className="mt-1 text-lg font-bold tracking-tight text-ink">{betTitle(bet)}</h3>
           </div>
-          <StatusPill status={bet.status} />
+          <StatusPill status={bet.status} live={inPlay} />
         </div>
 
         <div className="mt-3.5">
           <OddsMeter bet={bet} />
         </div>
 
-        <p className="tnum mt-3 text-xs text-ink-3">
+        <p className="tnum mt-3 font-mono text-xs text-ink-3">
           {stakeable ? (
             <>
               Staking closes in <Countdown ts={bet.kickoffTs} /> · pool{" "}
@@ -80,13 +81,13 @@ export function BetCard({
               onClick={() => onOpen("over")}
               className="flex-1 rounded-xl border border-over/40 bg-over/10 py-2.5 text-sm font-bold text-over transition hover:bg-over/20"
             >
-              Over {overX ? <span className="tnum font-semibold opacity-80">×{overX.toFixed(2)}</span> : ""}
+              Over {overX ? <span className="tnum font-mono font-semibold opacity-80">×{overX.toFixed(2)}</span> : ""}
             </button>
             <button
               onClick={() => onOpen("under")}
               className="flex-1 rounded-xl border border-under/40 bg-under/10 py-2.5 text-sm font-bold text-under transition hover:bg-under/20"
             >
-              Under {underX ? <span className="tnum font-semibold opacity-80">×{underX.toFixed(2)}</span> : ""}
+              Under {underX ? <span className="tnum font-mono font-semibold opacity-80">×{underX.toFixed(2)}</span> : ""}
             </button>
           </>
         ) : (

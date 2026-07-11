@@ -11,6 +11,7 @@ import {
   kickoffLabel,
   matchup,
   money,
+  payoutIfWins,
   pusdc,
   shortAddress,
 } from "@/lib/format";
@@ -150,8 +151,21 @@ export function BetDetailSheet({
                 {busy === "stake" ? "Staking…" : session ? "Stake" : "Sign in & stake"}
               </Button>
             </div>
+            {amount > 0 && (
+              <p className="tnum mt-2.5 font-mono text-xs text-ink-2">
+                Stake {money(amount)} → get{" "}
+                <span className={`font-semibold ${side === "over" ? "text-over" : "text-under"}`}>
+                  {money(payoutIfWins(bet, side, amount))} pUSDC
+                </span>{" "}
+                if {side === "over" ? "Over" : "Under"} lands (×
+                {(payoutIfWins(bet, side, amount) / amount).toFixed(2)})
+                {pusdc(side === "over" ? bet.underTotal : bet.overTotal) === 0 && (
+                  <span className="text-ink-3"> — grows as {side === "over" ? "Under" : "Over"} fills</span>
+                )}
+              </p>
+            )}
             {position && (
-              <p className="mt-2 text-xs text-ink-3">
+              <p className="mt-1.5 text-xs text-ink-3">
                 Your position: {money(pusdc(position.amount))} pUSDC on {position.side} — top-ups must stay on the same side.
               </p>
             )}

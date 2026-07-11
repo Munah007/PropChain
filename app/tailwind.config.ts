@@ -12,13 +12,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        page: "#0d0d0d",
-        surface: "#1a1a19",
-        raised: "#232322",
-        ink: "#ffffff",
-        "ink-2": "#c3c2b7",
-        "ink-3": "#898781",
-        hairline: "rgba(255,255,255,0.10)",
+        // "stadium at night": navy-black atmosphere, validated for the series
+        // colors (Over #3987e5 / Under #199e70 pass all checks on surface)
+        page: "#080d16",
+        surface: "#0f1622",
+        raised: "#16202f",
+        ink: "#f4f7fc",
+        "ink-2": "#b7c2d4",
+        "ink-3": "#7d8a9e",
+        hairline: "rgba(160,190,255,0.11)",
         over: "#3987e5", // categorical slot 1 (dark)
         under: "#199e70", // categorical slot 2 (dark)
         good: "#0ca30c",

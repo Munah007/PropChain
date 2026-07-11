@@ -1,45 +1,77 @@
 import type { Bet, Fixture } from "./api";
 
 // Market templates. TxLINE base stat keys: odd = home, even = away.
-// Line markets with hasLine show sportsbook half-lines: displayed line =
+// lineKind "half" markets show sportsbook half-lines: displayed line =
 // on-chain integer threshold + 0.5 (strict Greater ≡ over the half-line).
 export interface MarketTemplate {
   id: string;
   group: string;
+  /** {home}/{away} resolve to team names; {n} resolves to threshold+1 (margins) */
   label: string;
   kind: "line" | "bothScore";
   a: number;
   b: number | null;
   op: "add" | "subtract" | null;
-  hasLine: boolean;
+  comparison: "greater" | "less";
+  /** half → "N.5" totals line · plus → "N+" margin line · none → binary */
+  lineKind: "half" | "plus" | "none";
   defaultThreshold: number;
-  /** [over-side label, under-side label]; {home}/{away} resolve to team names */
   sides: [string, string];
 }
 
+const M = (
+  id: string, group: string, label: string, kind: MarketTemplate["kind"],
+  a: number, b: number | null, op: MarketTemplate["op"], comparison: MarketTemplate["comparison"],
+  lineKind: MarketTemplate["lineKind"], defaultThreshold: number, sides: [string, string]
+): MarketTemplate => ({ id, group, label, kind, a, b, op, comparison, lineKind, defaultThreshold, sides });
+
+// Everything the deployed protocol can express over TxLINE's eight provable
+// stats (per-team goals 1/2, yellows 3/4, reds 5/6, corners 7/8).
 export const MARKETS: MarketTemplate[] = [
-  { id: "total-goals", group: "Goals", label: "Total goals", kind: "line", a: 1, b: 2, op: "add", hasLine: true, defaultThreshold: 2, sides: ["Over", "Under"] },
-  { id: "btts", group: "Goals", label: "Both teams to score", kind: "bothScore", a: 1, b: 2, op: null, hasLine: false, defaultThreshold: 0, sides: ["GG · yes", "NG · no"] },
-  { id: "home-win", group: "Goals", label: "{home} to win", kind: "line", a: 1, b: 2, op: "subtract", hasLine: false, defaultThreshold: 0, sides: ["{home} wins", "Draw / {away}"] },
-  { id: "away-win", group: "Goals", label: "{away} to win", kind: "line", a: 2, b: 1, op: "subtract", hasLine: false, defaultThreshold: 0, sides: ["{away} wins", "Draw / {home}"] },
-  { id: "home-margin", group: "Goals", label: "{home} wins by 2+", kind: "line", a: 1, b: 2, op: "subtract", hasLine: false, defaultThreshold: 1, sides: ["By 2+", "No"] },
-  { id: "home-goals", group: "Goals", label: "{home} goals", kind: "line", a: 1, b: null, op: null, hasLine: true, defaultThreshold: 1, sides: ["Over", "Under"] },
-  { id: "away-goals", group: "Goals", label: "{away} goals", kind: "line", a: 2, b: null, op: null, hasLine: true, defaultThreshold: 1, sides: ["Over", "Under"] },
-  { id: "total-corners", group: "Corners", label: "Total corners", kind: "line", a: 7, b: 8, op: "add", hasLine: true, defaultThreshold: 9, sides: ["Over", "Under"] },
-  { id: "home-corners", group: "Corners", label: "{home} corners", kind: "line", a: 7, b: null, op: null, hasLine: true, defaultThreshold: 4, sides: ["Over", "Under"] },
-  { id: "away-corners", group: "Corners", label: "{away} corners", kind: "line", a: 8, b: null, op: null, hasLine: true, defaultThreshold: 4, sides: ["Over", "Under"] },
-  { id: "total-yellows", group: "Cards", label: "Total yellow cards", kind: "line", a: 3, b: 4, op: "add", hasLine: true, defaultThreshold: 3, sides: ["Over", "Under"] },
-  { id: "total-reds", group: "Cards", label: "Red card shown", kind: "line", a: 5, b: 6, op: "add", hasLine: false, defaultThreshold: 0, sides: ["Yes", "No"] },
+  // ----- Match result
+  M("home-win", "Match result", "{home} to win", "line", 1, 2, "subtract", "greater", "none", 0, ["{home} wins", "Draw / {away}"]),
+  M("away-win", "Match result", "{away} to win", "line", 2, 1, "subtract", "greater", "none", 0, ["{away} wins", "Draw / {home}"]),
+  M("home-margin", "Match result", "{home} to win by {n}+", "line", 1, 2, "subtract", "greater", "plus", 1, ["By {n}+", "Fewer"]),
+  M("away-margin", "Match result", "{away} to win by {n}+", "line", 2, 1, "subtract", "greater", "plus", 1, ["By {n}+", "Fewer"]),
+  // ----- Goals
+  M("total-goals", "Goals", "Total goals", "line", 1, 2, "add", "greater", "half", 2, ["Over", "Under"]),
+  M("btts", "Goals", "Both teams to score", "bothScore", 1, 2, null, "greater", "none", 0, ["GG · yes", "NG · no"]),
+  M("home-scores", "Goals", "{home} to score", "line", 1, null, null, "greater", "none", 0, ["{home} scores", "No goal"]),
+  M("away-scores", "Goals", "{away} to score", "line", 2, null, null, "greater", "none", 0, ["{away} scores", "No goal"]),
+  M("home-goals", "Goals", "{home} goals", "line", 1, null, null, "greater", "half", 1, ["Over", "Under"]),
+  M("away-goals", "Goals", "{away} goals", "line", 2, null, null, "greater", "half", 1, ["Over", "Under"]),
+  M("home-cleansheet", "Goals", "{home} clean sheet", "line", 2, null, null, "less", "none", 1, ["Clean sheet", "Concedes"]),
+  M("away-cleansheet", "Goals", "{away} clean sheet", "line", 1, null, null, "less", "none", 1, ["Clean sheet", "Concedes"]),
+  // ----- Corners
+  M("total-corners", "Corners", "Total corners", "line", 7, 8, "add", "greater", "half", 9, ["Over", "Under"]),
+  M("most-corners", "Corners", "Most corners", "line", 7, 8, "subtract", "greater", "none", 0, ["{home} most", "{away} / tie"]),
+  M("corner-handicap", "Corners", "{home} corners winning margin", "line", 7, 8, "subtract", "greater", "plus", 1, ["By {n}+", "Fewer"]),
+  M("home-corners", "Corners", "{home} corners", "line", 7, null, null, "greater", "half", 4, ["Over", "Under"]),
+  M("away-corners", "Corners", "{away} corners", "line", 8, null, null, "greater", "half", 4, ["Over", "Under"]),
+  // ----- Cards
+  M("total-yellows", "Cards", "Total yellow cards", "line", 3, 4, "add", "greater", "half", 3, ["Over", "Under"]),
+  M("home-yellows", "Cards", "{home} yellow cards", "line", 3, null, null, "greater", "half", 1, ["Over", "Under"]),
+  M("away-yellows", "Cards", "{away} yellow cards", "line", 4, null, null, "greater", "half", 1, ["Over", "Under"]),
+  M("both-booked", "Cards", "Both teams booked", "bothScore", 3, 4, null, "greater", "none", 0, ["Both booked", "No"]),
+  M("most-cards", "Cards", "Most yellow cards", "line", 3, 4, "subtract", "greater", "none", 0, ["{home} most", "{away} / tie"]),
+  M("red-shown", "Cards", "Red card in match", "line", 5, 6, "add", "greater", "none", 0, ["Yes", "No"]),
 ];
 
-export function findMarket(bet: Pick<Bet, "kind" | "statKeyA" | "statKeyB" | "op" | "threshold">): MarketTemplate | undefined {
-  return MARKETS.find(
+export function findMarket(
+  bet: Pick<Bet, "kind" | "statKeyA" | "statKeyB" | "op" | "comparison" | "threshold">
+): MarketTemplate | undefined {
+  const candidates = MARKETS.filter(
     (m) =>
       m.kind === bet.kind &&
       m.a === bet.statKeyA &&
       m.b === bet.statKeyB &&
       m.op === (bet.op ?? null) &&
-      (m.hasLine || m.defaultThreshold === bet.threshold || m.id.includes("margin"))
+      m.comparison === bet.comparison
+  );
+  return (
+    candidates.find((m) => m.lineKind === "none" && m.defaultThreshold === bet.threshold) ??
+    candidates.find((m) => m.lineKind !== "none") ??
+    candidates[0]
   );
 }
 
@@ -48,26 +80,31 @@ function teamNames(bet: Bet, fixtures: Fixture[]): { home: string; away: string 
   return { home: f?.home ?? "Home", away: f?.away ?? "Away" };
 }
 
-const fill = (s: string, t: { home: string; away: string }) =>
-  s.replace("{home}", t.home).replace("{away}", t.away);
+export const fillLabel = (s: string, t: { home: string; away: string }, threshold = 0) =>
+  s.replace("{home}", t.home).replace("{away}", t.away).replace("{n}", String(threshold + 1));
 
-/** Sportsbook line display: integer threshold 9 + strict Greater ≡ "9.5". */
+/** Sportsbook line display: integer threshold N + strict Greater ≡ "N.5". */
 export const lineOf = (threshold: number) => `${threshold}.5`;
 
 export function betTitle(bet: Bet, fixtures: Fixture[] = []): string {
   const t = teamNames(bet, fixtures);
   const m = findMarket(bet);
-  if (m && !m.hasLine) return fill(m.label, t);
-  const base = m ? fill(m.label, t) : `stat ${bet.statKeyA}${bet.statKeyB != null ? `${bet.op === "subtract" ? "−" : "+"}${bet.statKeyB}` : ""}`;
-  const cmp = bet.comparison === "greater" ? "over" : "under";
-  return `${base} ${cmp} ${lineOf(bet.threshold)}`;
+  if (!m) {
+    const combo = bet.statKeyB != null ? `${bet.op === "subtract" ? "−" : "+"}${bet.statKeyB}` : "";
+    return `stat ${bet.statKeyA}${combo} ${bet.comparison === "greater" ? "over" : "under"} ${bet.threshold}`;
+  }
+  const base = fillLabel(m.label, t, bet.threshold);
+  if (m.lineKind === "half") {
+    return `${base} ${bet.comparison === "greater" ? "over" : "under"} ${lineOf(bet.threshold)}`;
+  }
+  return base;
 }
 
 /** Side labels for buttons/toggles/results ("GG · yes" / "France wins" / "Over"). */
 export function sideLabels(bet: Bet, fixtures: Fixture[] = []): { over: string; under: string } {
   const t = teamNames(bet, fixtures);
   const m = findMarket(bet);
-  if (m) return { over: fill(m.sides[0], t), under: fill(m.sides[1], t) };
+  if (m) return { over: fillLabel(m.sides[0], t, bet.threshold), under: fillLabel(m.sides[1], t, bet.threshold) };
   return { over: "Over", under: "Under" };
 }
 

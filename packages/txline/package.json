@@ -1,0 +1,16 @@
+{
+  "name": "@propchain/txline",
+  "version": "0.1.0",
+  "description": "TypeScript client for TxLINE: auth, data API, SSE streams, and validateStat proof helpers",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0",
+    "tweetnacl": "^1.0.3"
+  }
+}

@@ -1,0 +1,29 @@
+[toolchain]
+package_manager = "npm"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+propchain = "3HwBzjvoM663GwMSveXdNNFVaQ4JdNxQAyAxEdZv7MJU"
+
+[programs.devnet]
+propchain = "3HwBzjvoM663GwMSveXdNNFVaQ4JdNxQAyAxEdZv7MJU"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "node --test tests/propchain.test.ts"
+
+# Day 2: clone TxLINE txoracle (+ daily roots PDAs) into the local validator
+# for propose_settlement CPI tests:
+#   [test.validator]
+#   url = "https://api.devnet.solana.com"
+#   [[test.validator.clone]]
+#   address = "6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J"

@@ -1,0 +1,28 @@
+{
+  "name": "propchain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "keeper",
+    "server"
+  ],
+  "scripts": {
+    "build:program": "anchor build",
+    "test:program": "anchor test",
+    "keeper": "npm run start -w keeper",
+    "test:settlement": "node --test tests/settlement.test.ts",
+    "server": "npm run start -w server"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "anchor-bankrun": "^0.5.0",
+    "solana-bankrun": "^0.4.0"
+  }
+}

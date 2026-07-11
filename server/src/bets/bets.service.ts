@@ -47,6 +47,8 @@ export class BetsService {
       fixtureId: Number(body.fixtureId),
       statKeyA: Number(body.statKeyA),
       statKeyB: body.statKeyB != null ? Number(body.statKeyB) : null,
+      op: body.op === "add" || body.op === "subtract" ? body.op : null,
+      kind: body.kind === "bothScore" ? "bothScore" : "line",
       comparison: body.comparison === "less" ? "less" : "greater",
       threshold: Number(body.threshold),
       kickoffTs: Number(body.kickoffTs),

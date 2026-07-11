@@ -105,6 +105,8 @@ let TxsService = class TxsService {
             fixtureId: new BN(req.fixtureId),
             statKeyA: req.statKeyA,
             statKeyB: req.statKeyB ?? null,
+            op: req.op ? { [req.op]: {} } : null,
+            kind: req.kind === "bothScore" ? { bothScore: {} } : { line: {} },
             comparison: req.comparison === "less" ? { less: {} } : { greater: {} },
             threshold: req.threshold,
             kickoffTs: new BN(req.kickoffTs),
@@ -173,15 +175,37 @@ let TxsService = class TxsService {
             claimed: account.claimed,
         }));
     }
+    /** getProgramAccounts + per-account decode; skips stale-layout accounts. */
+    async safeAll(program, name) {
+        const coder = program.coder.accounts;
+        const discriminator = coder.memcmp(name).bytes
+            ? Buffer.from(anchor.utils.bytes.bs58.decode(coder.memcmp(name).bytes))
+            : Buffer.alloc(0);
+        const raw = await this.connection.getProgramAccounts(program.programId, {
+            filters: [{ memcmp: { offset: 0, bytes: anchor.utils.bytes.bs58.encode(discriminator) } }],
+        });
+        const out = [];
+        for (const { pubkey, account } of raw) {
+            try {
+                out.push({ publicKey: pubkey, account: coder.decode(name, account.data) });
+            }
+            catch {
+                /* pre-migration layout — ignore */
+            }
+        }
+        return out;
+    }
     async listBets() {
         const { program } = await this.getProgram();
-        const bets = await program.account.betConfig.all();
+        const bets = await this.safeAll(program, "betConfig");
         return bets.map(({ publicKey, account }) => ({
             address: publicKey.toBase58(),
             creator: account.creator.toBase58(),
             fixtureId: account.fixtureId.toString(),
             statKeyA: account.statKeyA,
             statKeyB: account.statKeyB,
+            op: account.op ? Object.keys(account.op)[0] : null,
+            kind: Object.keys(account.kind)[0],
             comparison: Object.keys(account.comparison)[0],
             threshold: account.threshold,
             kickoffTs: account.kickoffTs.toNumber(),

@@ -1,27 +1,74 @@
 import type { Bet, Fixture } from "./api";
 
-// TxLINE base stat keys: odd = home, even = away.
-export const STAT_TEMPLATES: { label: string; a: number; b: number | null }[] = [
-  { label: "Total corners", a: 7, b: 8 },
-  { label: "Total goals", a: 1, b: 2 },
-  { label: "Total yellow cards", a: 3, b: 4 },
-  { label: "Total red cards", a: 5, b: 6 },
-  { label: "Home goals", a: 1, b: null },
-  { label: "Away goals", a: 2, b: null },
-  { label: "Home corners", a: 7, b: null },
-  { label: "Away corners", a: 8, b: null },
-];
-
-export function statLabel(bet: Pick<Bet, "statKeyA" | "statKeyB">): string {
-  const match = STAT_TEMPLATES.find((t) => t.a === bet.statKeyA && t.b === bet.statKeyB);
-  if (match) return match.label;
-  return `stat ${bet.statKeyA}${bet.statKeyB ? `+${bet.statKeyB}` : ""}`;
+// Market templates. TxLINE base stat keys: odd = home, even = away.
+// Line markets with hasLine show sportsbook half-lines: displayed line =
+// on-chain integer threshold + 0.5 (strict Greater ≡ over the half-line).
+export interface MarketTemplate {
+  id: string;
+  group: string;
+  label: string;
+  kind: "line" | "bothScore";
+  a: number;
+  b: number | null;
+  op: "add" | "subtract" | null;
+  hasLine: boolean;
+  defaultThreshold: number;
+  /** [over-side label, under-side label]; {home}/{away} resolve to team names */
+  sides: [string, string];
 }
 
-/** "Total corners · Over/Under 9" phrasing for a bet. */
-export function betTitle(bet: Bet): string {
+export const MARKETS: MarketTemplate[] = [
+  { id: "total-goals", group: "Goals", label: "Total goals", kind: "line", a: 1, b: 2, op: "add", hasLine: true, defaultThreshold: 2, sides: ["Over", "Under"] },
+  { id: "btts", group: "Goals", label: "Both teams to score", kind: "bothScore", a: 1, b: 2, op: null, hasLine: false, defaultThreshold: 0, sides: ["GG · yes", "NG · no"] },
+  { id: "home-win", group: "Goals", label: "{home} to win", kind: "line", a: 1, b: 2, op: "subtract", hasLine: false, defaultThreshold: 0, sides: ["{home} wins", "Draw / {away}"] },
+  { id: "away-win", group: "Goals", label: "{away} to win", kind: "line", a: 2, b: 1, op: "subtract", hasLine: false, defaultThreshold: 0, sides: ["{away} wins", "Draw / {home}"] },
+  { id: "home-margin", group: "Goals", label: "{home} wins by 2+", kind: "line", a: 1, b: 2, op: "subtract", hasLine: false, defaultThreshold: 1, sides: ["By 2+", "No"] },
+  { id: "home-goals", group: "Goals", label: "{home} goals", kind: "line", a: 1, b: null, op: null, hasLine: true, defaultThreshold: 1, sides: ["Over", "Under"] },
+  { id: "away-goals", group: "Goals", label: "{away} goals", kind: "line", a: 2, b: null, op: null, hasLine: true, defaultThreshold: 1, sides: ["Over", "Under"] },
+  { id: "total-corners", group: "Corners", label: "Total corners", kind: "line", a: 7, b: 8, op: "add", hasLine: true, defaultThreshold: 9, sides: ["Over", "Under"] },
+  { id: "home-corners", group: "Corners", label: "{home} corners", kind: "line", a: 7, b: null, op: null, hasLine: true, defaultThreshold: 4, sides: ["Over", "Under"] },
+  { id: "away-corners", group: "Corners", label: "{away} corners", kind: "line", a: 8, b: null, op: null, hasLine: true, defaultThreshold: 4, sides: ["Over", "Under"] },
+  { id: "total-yellows", group: "Cards", label: "Total yellow cards", kind: "line", a: 3, b: 4, op: "add", hasLine: true, defaultThreshold: 3, sides: ["Over", "Under"] },
+  { id: "total-reds", group: "Cards", label: "Red card shown", kind: "line", a: 5, b: 6, op: "add", hasLine: false, defaultThreshold: 0, sides: ["Yes", "No"] },
+];
+
+export function findMarket(bet: Pick<Bet, "kind" | "statKeyA" | "statKeyB" | "op" | "threshold">): MarketTemplate | undefined {
+  return MARKETS.find(
+    (m) =>
+      m.kind === bet.kind &&
+      m.a === bet.statKeyA &&
+      m.b === bet.statKeyB &&
+      m.op === (bet.op ?? null) &&
+      (m.hasLine || m.defaultThreshold === bet.threshold || m.id.includes("margin"))
+  );
+}
+
+function teamNames(bet: Bet, fixtures: Fixture[]): { home: string; away: string } {
+  const f = fixtures.find((f) => String(f.fixtureId) === bet.fixtureId);
+  return { home: f?.home ?? "Home", away: f?.away ?? "Away" };
+}
+
+const fill = (s: string, t: { home: string; away: string }) =>
+  s.replace("{home}", t.home).replace("{away}", t.away);
+
+/** Sportsbook line display: integer threshold 9 + strict Greater ≡ "9.5". */
+export const lineOf = (threshold: number) => `${threshold}.5`;
+
+export function betTitle(bet: Bet, fixtures: Fixture[] = []): string {
+  const t = teamNames(bet, fixtures);
+  const m = findMarket(bet);
+  if (m && !m.hasLine) return fill(m.label, t);
+  const base = m ? fill(m.label, t) : `stat ${bet.statKeyA}${bet.statKeyB != null ? `${bet.op === "subtract" ? "−" : "+"}${bet.statKeyB}` : ""}`;
   const cmp = bet.comparison === "greater" ? "over" : "under";
-  return `${statLabel(bet)} ${cmp} ${bet.threshold}`;
+  return `${base} ${cmp} ${lineOf(bet.threshold)}`;
+}
+
+/** Side labels for buttons/toggles/results ("GG · yes" / "France wins" / "Over"). */
+export function sideLabels(bet: Bet, fixtures: Fixture[] = []): { over: string; under: string } {
+  const t = teamNames(bet, fixtures);
+  const m = findMarket(bet);
+  if (m) return { over: fill(m.sides[0], t), under: fill(m.sides[1], t) };
+  return { over: "Over", under: "Under" };
 }
 
 export function pusdc(lamports: string | number): number {

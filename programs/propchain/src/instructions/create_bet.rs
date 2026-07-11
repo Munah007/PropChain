@@ -2,7 +2,9 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::errors::PropChainError;
-use crate::state::{is_valid_stat_key, BetConfig, BetStatus, Comparison, VOID_TIMELOCK_SECS};
+use crate::state::{
+    is_valid_stat_key, BetConfig, BetStatus, Comparison, MarketKind, StatOp, VOID_TIMELOCK_SECS,
+};
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct CreateBetArgs {
@@ -10,8 +12,10 @@ pub struct CreateBetArgs {
     pub fixture_id: u64,
     pub stat_key_a: u16,
     pub stat_key_b: Option<u16>,
+    pub op: Option<StatOp>,
+    pub kind: MarketKind,
     pub comparison: Comparison,
-    pub threshold: u32,
+    pub threshold: i32,
     pub kickoff_ts: i64,
 }
 
@@ -57,11 +61,19 @@ pub fn handler(ctx: Context<CreateBet>, args: CreateBetArgs) -> Result<()> {
     if let Some(key_b) = args.stat_key_b {
         require!(is_valid_stat_key(key_b), PropChainError::InvalidStatKey);
     }
-    // The oracle predicate threshold is i32.
-    require!(
-        args.threshold <= i32::MAX as u32,
-        PropChainError::ThresholdTooLarge
-    );
+    match args.kind {
+        // Line markets: two stats need an op; one stat must not carry one.
+        MarketKind::Line => require!(
+            args.stat_key_b.is_some() == args.op.is_some(),
+            PropChainError::InvalidMarket
+        ),
+        // GG: exactly two stats, individually compared to zero — no op,
+        // and the caller-supplied comparison/threshold are unused.
+        MarketKind::BothScore => require!(
+            args.stat_key_b.is_some() && args.op.is_none(),
+            PropChainError::InvalidMarket
+        ),
+    }
 
     let bet = &mut ctx.accounts.bet;
     bet.creator = ctx.accounts.creator.key();
@@ -69,6 +81,8 @@ pub fn handler(ctx: Context<CreateBet>, args: CreateBetArgs) -> Result<()> {
     bet.fixture_id = args.fixture_id;
     bet.stat_key_a = args.stat_key_a;
     bet.stat_key_b = args.stat_key_b;
+    bet.op = args.op;
+    bet.kind = args.kind;
     bet.comparison = args.comparison;
     bet.threshold = args.threshold;
     bet.kickoff_ts = args.kickoff_ts;

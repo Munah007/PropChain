@@ -41,8 +41,9 @@ const ROOTS_FIXTURE = JSON.parse(
 const FIXTURE_ID = 18209181;
 
 const loadProof = (name: string) =>
-  JSON.parse(readFileSync(new URL(`./fixtures/proof-corners-${name}.json`, import.meta.url), "utf8"));
+  JSON.parse(readFileSync(new URL(`./fixtures/proof-${name.includes("goals") ? name : `corners-${name}`}.json`, import.meta.url), "utf8"));
 const PROOF_HALFTIME = loadProof("halftime");
+const PROOF_GOALS = loadProof("goals-final"); // France 2-0: keys 1,2 at seq 1115
 const PROOF_FINALISED = loadProof("finalised"); // seq 1114, ts 1783634788478
 const PROOF_FINAL = loadProof("final"); // seq 1115, ts 1783635207535
 
@@ -118,6 +119,9 @@ async function createBetAndWarpPastKickoff(opts: {
   threshold?: number;
   statKeyA?: number;
   statKeyB?: number | null;
+  op?: object | null;
+  kind?: object;
+  comparison?: object;
   fixtureId?: number;
   overStake?: anchor.BN | null;
   underStake?: anchor.BN | null;
@@ -125,13 +129,18 @@ async function createBetAndWarpPastKickoff(opts: {
   const nonce = nonceCounter++;
   const { bet, pool } = betPdas(nonce);
   const kickoff = Number(await now()) + 1000;
+  const statKeyB = opts.statKeyB === undefined ? 8 : opts.statKeyB;
+  const kind = opts.kind ?? { line: {} };
+  const isLine = "line" in kind;
   await program.methods
     .createBet({
       nonce: new BN(nonce),
       fixtureId: new BN(opts.fixtureId ?? FIXTURE_ID),
       statKeyA: opts.statKeyA ?? 7,
-      statKeyB: opts.statKeyB === undefined ? 8 : opts.statKeyB,
-      comparison: { greater: {} },
+      statKeyB,
+      op: opts.op !== undefined ? opts.op : isLine && statKeyB != null ? { add: {} } : null,
+      kind,
+      comparison: opts.comparison ?? { greater: {} },
       threshold: opts.threshold ?? 9,
       kickoffTs: new BN(kickoff),
     })
@@ -395,4 +404,64 @@ test("fixture binding: proof for another match is rejected", async () => {
     overStake: usdc(5),
   });
   await expectError(propose(bet, PROOF_FINAL), "FixtureMismatch");
+});
+
+test("GG / both teams to score: France 2-0 -> NG side wins", async () => {
+  const { bet, pool } = await createBetAndWarpPastKickoff({
+    kind: { bothScore: {} },
+    statKeyA: 1,
+    statKeyB: 2,
+    op: null,
+    threshold: 0,
+    overStake: usdc(10), // Over = GG ("yes")
+    underStake: usdc(10), // Under = NG ("no") — Morocco scored 0, NG wins
+  });
+  await propose(bet, PROOF_GOALS);
+  const pending = (await program.account.betConfig.fetch(bet)).pending;
+  assert.equal(pending.result, false); // GG did not land
+
+  await warpBy(91 * 60);
+  await finalize(bet);
+  const before = await tokenBalance(bobToken);
+  await claim(bob, bobToken, bet, pool);
+  assert.equal(await tokenBalance(bobToken) - before, 20_000_000n);
+});
+
+test("winner market: home - away > 0 -> France win side wins", async () => {
+  const { bet } = await createBetAndWarpPastKickoff({
+    kind: { line: {} },
+    statKeyA: 1,
+    statKeyB: 2,
+    op: { subtract: {} },
+    threshold: 0, // France won 2-0 -> 2 - 0 > 0 -> Over (home win) true
+    overStake: usdc(5),
+    underStake: usdc(5),
+  });
+  await propose(bet, PROOF_GOALS);
+  assert.equal((await program.account.betConfig.fetch(bet)).pending.result, true);
+});
+
+test("margin market: home wins by 2+ (subtract > 1) -> true", async () => {
+  const { bet } = await createBetAndWarpPastKickoff({
+    kind: { line: {} },
+    statKeyA: 1,
+    statKeyB: 2,
+    op: { subtract: {} },
+    threshold: 1,
+    overStake: usdc(5),
+    underStake: usdc(5),
+  });
+  await propose(bet, PROOF_GOALS);
+  assert.equal((await program.account.betConfig.fetch(bet)).pending.result, true);
+});
+
+test("create_bet rejects malformed markets", async () => {
+  await assert.rejects(
+    createBetAndWarpPastKickoff({ kind: { line: {} }, statKeyB: 8, op: null }),
+    /InvalidMarket/
+  );
+  await assert.rejects(
+    createBetAndWarpPastKickoff({ kind: { bothScore: {} }, statKeyA: 1, statKeyB: 2, op: { add: {} } }),
+    /InvalidMarket/
+  );
 });

@@ -5,7 +5,7 @@
 // only when the transaction actually needs a wallet.
 
 import type { Bet, Fixture, Position } from "@/lib/api";
-import { betTitle, kickoffLabel, matchup, money, payoutMultiple, pusdc } from "@/lib/format";
+import { betTitle, kickoffLabel, matchup, money, payoutMultiple, pusdc, sideLabels } from "@/lib/format";
 import { Countdown, OddsMeter, StatusPill } from "./ui";
 
 export function BetCard({
@@ -22,6 +22,7 @@ export function BetCard({
   const now = Math.floor(Date.now() / 1000);
   const stakeable = bet.status === "open" && now < bet.kickoffTs;
   const inPlay = bet.status === "open" && now >= bet.kickoffTs;
+  const labels = sideLabels(bet, fixtures);
   const overX = payoutMultiple(bet, "over");
   const underX = payoutMultiple(bet, "under");
   const settledOrPending = bet.status !== "open";
@@ -36,13 +37,13 @@ export function BetCard({
               <span className="mx-1.5 text-ink-3/50">·</span>
               {kickoffLabel(bet.kickoffTs)}
             </p>
-            <h3 className="mt-1 text-lg font-bold tracking-tight text-ink">{betTitle(bet)}</h3>
+            <h3 className="mt-1 text-lg font-bold tracking-tight text-ink">{betTitle(bet, fixtures)}</h3>
           </div>
           <StatusPill status={bet.status} live={inPlay} />
         </div>
 
         <div className="mt-3.5">
-          <OddsMeter bet={bet} />
+          <OddsMeter bet={bet} labels={labels} />
         </div>
 
         <p className="tnum mt-3 font-mono text-xs text-ink-3">
@@ -53,12 +54,12 @@ export function BetCard({
             </>
           ) : bet.status === "settlementPending" && bet.pending ? (
             <>
-              Proof verified — <span className={bet.pending.result ? "text-over" : "text-under"}>{bet.pending.result ? "Over" : "Under"}</span>{" "}
+              Proof verified — <span className={bet.pending.result ? "text-over" : "text-under"}>{bet.pending.result ? labels.over : labels.under}</span>{" "}
               pending · locks in <Countdown ts={bet.pending.challengeDeadlineTs} />
             </>
           ) : bet.status === "settled" ? (
             <>
-              Final: <span className={`font-semibold ${bet.result ? "text-over" : "text-under"}`}>{bet.result ? "Over" : "Under"} won</span> ·
+              Final: <span className={`font-semibold ${bet.result ? "text-over" : "text-under"}`}>“{bet.result ? labels.over : labels.under}” won</span> ·
               pool {money(pusdc(bet.overTotal) + pusdc(bet.underTotal))} pUSDC paid by Merkle proof
             </>
           ) : bet.status === "voided" ? (
@@ -68,7 +69,7 @@ export function BetCard({
           )}
           {position && (
             <span className={`ml-2 font-semibold ${position.side === "over" ? "text-over" : "text-under"}`}>
-              · You: {money(pusdc(position.amount))} on {position.side === "over" ? "Over" : "Under"}
+              · You: {money(pusdc(position.amount))} on “{position.side === "over" ? labels.over : labels.under}”
             </span>
           )}
         </p>
@@ -81,13 +82,13 @@ export function BetCard({
               onClick={() => onOpen("over")}
               className="flex-1 rounded-xl border border-over/40 bg-over/10 py-2.5 text-sm font-bold text-over transition hover:bg-over/20"
             >
-              Over {overX ? <span className="tnum font-mono font-semibold opacity-80">×{overX.toFixed(2)}</span> : ""}
+              <span className="truncate">{labels.over}</span> {overX ? <span className="tnum font-mono font-semibold opacity-80">×{overX.toFixed(2)}</span> : ""}
             </button>
             <button
               onClick={() => onOpen("under")}
               className="flex-1 rounded-xl border border-under/40 bg-under/10 py-2.5 text-sm font-bold text-under transition hover:bg-under/20"
             >
-              Under {underX ? <span className="tnum font-mono font-semibold opacity-80">×{underX.toFixed(2)}</span> : ""}
+              <span className="truncate">{labels.under}</span> {underX ? <span className="tnum font-mono font-semibold opacity-80">×{underX.toFixed(2)}</span> : ""}
             </button>
           </>
         ) : (

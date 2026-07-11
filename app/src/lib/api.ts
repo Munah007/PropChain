@@ -32,6 +32,8 @@ export interface Bet {
   fixtureId: string;
   statKeyA: number;
   statKeyB: number | null;
+  op: "add" | "subtract" | null;
+  kind: "line" | "bothScore";
   comparison: "greater" | "less";
   threshold: number;
   kickoffTs: number;
@@ -76,6 +78,8 @@ export const api = {
     fixtureId: number;
     statKeyA: number;
     statKeyB: number | null;
+    op: "add" | "subtract" | null;
+    kind: "line" | "bothScore";
     comparison: "greater" | "less";
     threshold: number;
     kickoffTs: number;

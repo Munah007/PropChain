@@ -30,7 +30,7 @@ export class WalletsService implements OnModuleInit {
   kind: "privy" | "local" = "local";
   private privy: any = null;
   private network = (process.env.SOLANA_NETWORK ?? "devnet") as "devnet" | "mainnet";
-  private keysPath = join(process.cwd(), "local-wallets.json");
+  private keysPath = join(process.env.DATA_DIR ?? process.cwd(), "local-wallets.json");
   private keys: Record<string, number[]> = {};
 
   constructor(@Inject(SOLANA_CONNECTION) private readonly connection: Connection) {}

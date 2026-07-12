@@ -70,7 +70,7 @@ let WalletsService = class WalletsService {
     kind = "local";
     privy = null;
     network = (process.env.SOLANA_NETWORK ?? "devnet");
-    keysPath = (0, node_path_1.join)(process.cwd(), "local-wallets.json");
+    keysPath = (0, node_path_1.join)(process.env.DATA_DIR ?? process.cwd(), "local-wallets.json");
     keys = {};
     constructor(connection) {
         this.connection = connection;

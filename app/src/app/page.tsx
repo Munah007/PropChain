@@ -8,7 +8,9 @@ import { AuthSheet } from "@/components/AuthSheet";
 import { MatchCard, matchPhase, type MatchGroup } from "@/components/MatchCard";
 import { CreateBetSheet } from "@/components/CreateBetSheet";
 import { BetDetailSheet } from "@/components/BetDetailSheet";
+import { MyBets } from "@/components/MyBets";
 import { Toast, type ToastData } from "@/components/ui";
+import { positionSummary } from "@/lib/format";
 
 const STATUS_ORDER: Record<Bet["status"], number> = {
   open: 0,
@@ -155,6 +157,9 @@ export default function Home() {
           </p>
           <SessionBar
             session={session}
+            betCount={positions?.length ?? 0}
+            claimable={claimableCount}
+            onMyBets={() => setMyBetsOpen(true)}
             onSignInClick={() => requireAuth("get started")}
             onSignOut={signOut}
           />
@@ -246,6 +251,16 @@ export default function Home() {
         </footer>
       </div>
 
+      {session && (
+        <MyBets
+          open={myBetsOpen}
+          onClose={() => setMyBetsOpen(false)}
+          bets={allBets}
+          positions={positions ?? []}
+          fixtures={fixtures ?? []}
+          onOpenBet={(address) => setSelected({ address })}
+        />
+      )}
       <Toast toast={toast} />
       <AuthSheet
         open={auth.open}

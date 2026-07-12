@@ -201,3 +201,59 @@ export function shortAddress(address: string): string {
 export function explorerUrl(address: string): string {
   return `https://explorer.solana.com/address/${address}?cluster=devnet`;
 }
+
+export type BetOutcome =
+  | "open"
+  | "in-play"
+  | "awaiting"
+  | "won"
+  | "lost"
+  | "refundable"
+  | "claimed";
+
+export interface PositionSummary {
+  outcome: BetOutcome;
+  label: string;
+  tone: "neutral" | "good" | "bad" | "pending";
+  claimable: boolean;
+  payout: number; // pUSDC receivable now (won unclaimed / refundable)
+}
+
+/** How a user's position on a bet stands right now. */
+export function positionSummary(bet: Bet, position: Position): PositionSummary {
+  const now = Math.floor(Date.now() / 1000);
+  const stake = pusdc(position.amount);
+
+  if (bet.status === "voided") {
+    return position.claimed
+      ? { outcome: "claimed", label: "Refunded", tone: "neutral", claimable: false, payout: 0 }
+      : { outcome: "refundable", label: "Refundable", tone: "neutral", claimable: true, payout: stake };
+  }
+
+  if (bet.status === "settled") {
+    const won = bet.result === (position.side === "over");
+    if (!won) return { outcome: "lost", label: "Lost", tone: "bad", claimable: false, payout: 0 };
+    const winningTotal = pusdc(bet.result ? bet.overTotal : bet.underTotal);
+    const pool = pusdc(bet.overTotal) + pusdc(bet.underTotal);
+    const payout = winningTotal > 0 ? (stake / winningTotal) * pool : stake;
+    return position.claimed
+      ? { outcome: "claimed", label: `Won ${money(payout)}`, tone: "good", claimable: false, payout: 0 }
+      : { outcome: "won", label: `Won ${money(payout)}`, tone: "good", claimable: true, payout };
+  }
+
+  if (bet.status === "settlementPending") {
+    const winning = bet.pending?.result === (position.side === "over");
+    return {
+      outcome: "awaiting",
+      label: winning ? "Winning (pending)" : "Losing (pending)",
+      tone: "pending",
+      claimable: false,
+      payout: 0,
+    };
+  }
+
+  // open
+  return now < bet.kickoffTs
+    ? { outcome: "open", label: "Open", tone: "neutral", claimable: false, payout: 0 }
+    : { outcome: "in-play", label: "In play", tone: "pending", claimable: false, payout: 0 };
+}

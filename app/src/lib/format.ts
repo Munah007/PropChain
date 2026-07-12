@@ -1,4 +1,4 @@
-import type { Bet, Fixture } from "./api";
+import type { Bet, Fixture, Position } from "./api";
 
 // Market templates. TxLINE base stat keys: odd = home, even = away.
 // lineKind "half" markets show sportsbook half-lines: displayed line =

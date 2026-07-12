@@ -55,7 +55,6 @@ export default function Home() {
   });
   const [selected, setSelected] = useState<{ address: string; side?: "over" | "under" } | null>(null);
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
-  const [myBetsOpen, setMyBetsOpen] = useState(false);
   const [auth, setAuth] = useState<{ open: boolean; intent: string | null }>({ open: false, intent: null });
   const pendingAction = useRef<(() => void) | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -111,15 +110,6 @@ export default function Home() {
 
   const positionByBet = useMemo(() => new Map((positions ?? []).map((p) => [p.bet, p])), [positions]);
   const allBets = useMemo(() => matches.flatMap((m) => m.bets), [matches]);
-  const betByAddress = useMemo(() => new Map(allBets.map((b) => [b.address, b])), [allBets]);
-  const claimableCount = useMemo(
-    () =>
-      (positions ?? []).filter((pos) => {
-        const bet = betByAddress.get(pos.bet);
-        return bet ? positionSummary(bet, pos).claimable : false;
-      }).length,
-    [positions, betByAddress]
-  );
   const selectedBet = allBets.find((b) => b.address === selected?.address) ?? null;
   const openMarkets = allBets.filter(
     (b) => b.status === "open" && b.kickoffTs > Math.floor(Date.now() / 1000)

@@ -19,17 +19,10 @@ export interface UserWallet {
   address: string;
 }
 
-// CAIP-2 chain ids Privy expects (first 32 chars of the genesis hash).
-const CAIP2: Record<string, string> = {
-  devnet: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
-  mainnet: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
-};
-
 @Injectable()
 export class WalletsService implements OnModuleInit {
   kind: "privy" | "local" = "local";
   private privy: any = null;
-  private network = (process.env.SOLANA_NETWORK ?? "devnet") as "devnet" | "mainnet";
   private keysPath = join(process.env.DATA_DIR ?? process.cwd(), "local-wallets.json");
   private keys: Record<string, number[]> = {};
 
@@ -71,12 +64,17 @@ export class WalletsService implements OnModuleInit {
   /** Sign a base64-serialized transaction with the user's wallet and send it. */
   async signAndSend(walletId: string, txBase64: string): Promise<string> {
     if (this.privy) {
-      const { hash } = await this.privy.walletApi.solana.signAndSendTransaction({
+      // Privy signs; WE broadcast on our own connection. Privy's
+      // signAndSendTransaction submits through its own RPC for the caip2
+      // chain, which can point at a different cluster than the one our
+      // blockhash came from ("Blockhash not found").
+      const { signedTransaction } = await this.privy.walletApi.solana.signTransaction({
         walletId,
-        caip2: CAIP2[this.network],
         transaction: Transaction.from(Buffer.from(txBase64, "base64")),
       });
-      return hash;
+      const sig = await this.connection.sendRawTransaction(signedTransaction.serialize());
+      await this.connection.confirmTransaction(sig, "confirmed");
+      return sig;
     }
     const secret = this.keys[walletId];
     if (!secret) throw new Error(`No local wallet for ${walletId}`);

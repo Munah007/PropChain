@@ -137,8 +137,8 @@ export default function Home() {
     setAuth({ open: true, intent });
   }
 
-  async function handleSignIn(userKey: string) {
-    await signIn(userKey);
+  async function handleSignIn(userKey: string, name?: string) {
+    await signIn(userKey, name);
     setAuth({ open: false, intent: null });
     pendingAction.current?.();
     pendingAction.current = null;

@@ -17,7 +17,7 @@ import { FundingService } from "../funding/funding.service";
 @Injectable()
 export class SessionService {
   private usersPath = join(process.env.DATA_DIR ?? process.cwd(), "users.json");
-  private users: Record<string, UserWallet>;
+  private users: Record<string, UserWallet & { name?: string }>;
 
   constructor(
     @Inject(SOLANA_CONNECTION) private readonly connection: Connection,
@@ -33,14 +33,15 @@ export class SessionService {
     return this.users[userKey];
   }
 
-  async getSession(userKey: string) {
+  async getSession(userKey: string, name?: string) {
     let created = false;
     if (!this.users[userKey]) {
       this.users[userKey] = await this.wallets.createWallet(userKey);
-      writeFileSync(this.usersPath, JSON.stringify(this.users, null, 2));
-      await this.funding.fund(this.users[userKey].address);
       created = true;
     }
+    if (name && name !== this.users[userKey].name) this.users[userKey].name = name;
+    if (created || name) writeFileSync(this.usersPath, JSON.stringify(this.users, null, 2));
+    if (created) await this.funding.fund(this.users[userKey].address);
     const wallet = this.users[userKey];
     const address = new PublicKey(wallet.address);
     const sol = (await this.connection.getBalance(address)) / LAMPORTS_PER_SOL;
@@ -51,6 +52,15 @@ export class SessionService {
     } catch {
       /* no ATA yet */
     }
-    return { userKey, address: wallet.address, sol, pusdc, created, provider: this.wallets.kind };
+    return {
+      userKey,
+      email: userKey,
+      name: wallet.name ?? null,
+      address: wallet.address,
+      sol,
+      pusdc,
+      created,
+      provider: this.wallets.kind,
+    };
   }
 }

@@ -11,9 +11,10 @@ export class SessionController {
   ) {}
 
   @Post("session")
-  async createSession(@Body() body: { userKey?: string }) {
+  async createSession(@Body() body: { userKey?: string; name?: string }) {
     if (!body?.userKey) throw new BadRequestException("userKey required");
-    return this.session.getSession(String(body.userKey));
+    const name = body.name ? String(body.name).trim().slice(0, 80) : undefined;
+    return this.session.getSession(String(body.userKey), name);
   }
 
   @Get("users/:userKey/positions")

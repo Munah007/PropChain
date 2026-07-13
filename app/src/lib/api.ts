@@ -5,6 +5,8 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8899";
 
 export interface Session {
   userKey: string;
+  email: string;
+  name: string | null;
   address: string;
   sol: number;
   pusdc: number;
@@ -63,8 +65,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  session: (userKey: string) =>
-    request<Session>("/session", { method: "POST", body: JSON.stringify({ userKey }) }),
+  session: (userKey: string, name?: string) =>
+    request<Session>("/session", { method: "POST", body: JSON.stringify({ userKey, name }) }),
 
   fixtures: () => request<Fixture[]>("/fixtures"),
 

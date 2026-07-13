@@ -37,10 +37,10 @@ export function useSession() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const refresh = useCallback(async (userKey: string) => {
+  const refresh = useCallback(async (userKey: string, name?: string) => {
     setLoading(true);
     try {
-      const s = await api.session(userKey);
+      const s = await api.session(userKey, name);
       setSession(s);
       localStorage.setItem("propchain.userKey", userKey);
       return s;

@@ -18,8 +18,9 @@ export function AuthSheet({
   intent: string | null; // "stake on Over" / "create a bet" / "claim winnings"
   loading: boolean;
   onClose: () => void;
-  onSignIn: (userKey: string) => Promise<unknown>;
+  onSignIn: (userKey: string, name?: string) => Promise<unknown>;
 }) {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -29,22 +30,33 @@ export function AuthSheet({
         className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
+          if (!name.trim()) return setError("Enter your name");
           if (!email.includes("@")) return setError("Enter a valid email");
           setError(null);
           try {
-            await onSignIn(email.trim().toLowerCase());
+            await onSignIn(email.trim().toLowerCase(), name.trim());
           } catch (err) {
             setError((err as Error).message);
           }
         }}
       >
         <input
-          type="email"
+          type="text"
           autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your name"
+          aria-label="Name"
+          autoComplete="name"
+          className="w-full rounded-xl border border-hairline bg-raised px-4 py-3 text-base text-ink outline-none placeholder:text-ink-3 focus:border-over"
+        />
+        <input
+          type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@email.com"
           aria-label="Email"
+          autoComplete="email"
           className="w-full rounded-xl border border-hairline bg-raised px-4 py-3 text-base text-ink outline-none placeholder:text-ink-3 focus:border-over"
         />
 

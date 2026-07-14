@@ -21,6 +21,7 @@ import {
   TXORACLE_PROGRAM_ID,
 } from "@/lib/format";
 import { Button, Countdown, Sheet, StatusPill } from "./ui";
+import { LiveScore } from "./LiveScore";
 
 export function BetDetailSheet({
   bet,
@@ -51,9 +52,12 @@ export function BetDetailSheet({
   const [lastSig, setLastSig] = useState<string | null>(null);
 
   if (!bet) return null;
+  const fixture = fixtures.find((f) => String(f.fixtureId) === bet.fixtureId);
   const labels = sideLabels(bet, fixtures);
   const labelOf = (s: "over" | "under") => (s === "over" ? labels.over : labels.under);
   const now = Math.floor(Date.now() / 1000);
+  const matchStarted = now >= bet.kickoffTs;
+  const finalized = bet.status === "settled" || bet.status === "voided";
   const stakeable = bet.status === "open" && now < bet.kickoffTs;
   const winningSide = bet.result === null ? null : bet.result ? "over" : "under";
   const claimable =
@@ -121,6 +125,16 @@ export function BetDetailSheet({
           <p className="text-sm text-ink-2">{matchup(bet, fixtures)}</p>
           <StatusPill status={bet.status} />
         </div>
+
+        {matchStarted && fixture && (
+          <LiveScore
+            fixtureId={fixture.fixtureId}
+            home={fixture.home}
+            away={fixture.away}
+            variant="card"
+            live={!finalized}
+          />
+        )}
 
         {stakeable && (
           <div className="rounded-xl border border-hairline bg-raised p-3">

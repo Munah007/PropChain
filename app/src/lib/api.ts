@@ -22,6 +22,17 @@ export interface Fixture {
   competition: string;
 }
 
+export interface LiveScore {
+  fixtureId: number;
+  hasScore: boolean;
+  home: number;
+  away: number;
+  minute: number | null;
+  gameState: string | null;
+  asOf: number;
+  seq: number;
+}
+
 export interface PendingSettlement {
   result: boolean;
   proofTs: string;
@@ -69,6 +80,8 @@ export const api = {
     request<Session>("/session", { method: "POST", body: JSON.stringify({ userKey, name }) }),
 
   fixtures: () => request<Fixture[]>("/fixtures"),
+
+  score: (fixtureId: number) => request<LiveScore>(`/fixtures/${fixtureId}/score`),
 
   bets: () => request<Bet[]>("/bets"),
 

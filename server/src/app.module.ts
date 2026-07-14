@@ -11,11 +11,23 @@ import { FundingService } from "./funding/funding.service";
 import { TxsService } from "./solana/txs.service";
 import { FixturesController } from "./fixtures/fixtures.controller";
 import { FixturesService } from "./fixtures/fixtures.service";
+import { AuthService } from "./auth/auth.service";
+import { SessionAuthGuard } from "./auth/session-auth.guard";
+import { SessionThrottleGuard } from "./auth/session-throttle.guard";
+import { DemoController } from "./demo/demo.controller";
+import { DemoService } from "./demo/demo.service";
+import { OddsController } from "./odds/odds.controller";
+import { OddsService } from "./odds/odds.service";
+import { AgentController } from "./agent/agent.controller";
+import { AgentService } from "./agent/agent.service";
 
 @Module({
-  controllers: [SessionController, BetsController, FixturesController],
+  controllers: [SessionController, BetsController, FixturesController, DemoController, OddsController, AgentController],
   providers: [
     FixturesService,
+    DemoService,
+    OddsService,
+    AgentService,
     {
       provide: SOLANA_CONNECTION,
       useFactory: () =>
@@ -26,6 +38,9 @@ import { FixturesService } from "./fixtures/fixtures.service";
     TxsService,
     SessionService,
     BetsService,
+    AuthService,
+    SessionAuthGuard,
+    SessionThrottleGuard,
   ],
 })
 export class AppModule {}

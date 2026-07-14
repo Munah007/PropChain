@@ -146,7 +146,8 @@ export type Propchain = {
           }
         },
         {
-          "name": "usdcMint"
+          "name": "usdcMint",
+          "address": "DWF9ARTjTq3S2jMabyimsaXiVqGVHnVdp1XoRAh3s6Q8"
         },
         {
           "name": "pool",
@@ -369,6 +370,64 @@ export type Propchain = {
       ]
     },
     {
+      "name": "sweep",
+      "docs": [
+        "Creator-only, post-claim-window: sweep the vault's residual (rounding",
+        "dust + unclaimed stakes) and reclaim its rent."
+      ],
+      "discriminator": [
+        40,
+        23,
+        234,
+        175,
+        14,
+        61,
+        154,
+        177
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "bet",
+          "writable": true
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "bet"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creatorToken",
+          "writable": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "voidBet",
       "docs": [
         "Permissionless safety valve: void a never-settled bet after",
@@ -446,6 +505,19 @@ export type Propchain = {
         150,
         248,
         33
+      ]
+    },
+    {
+      "name": "poolSwept",
+      "discriminator": [
+        114,
+        164,
+        154,
+        10,
+        230,
+        76,
+        10,
+        223
       ]
     },
     {
@@ -568,8 +640,33 @@ export type Propchain = {
     },
     {
       "code": 6018,
+      "name": "invalidMint",
+      "msg": "Stake mint is not the accepted pUSDC mint"
+    },
+    {
+      "code": 6019,
+      "name": "notCreator",
+      "msg": "Only the bet creator may sweep"
+    },
+    {
+      "code": 6020,
+      "name": "notTerminal",
+      "msg": "Bet is not in a terminal (settled/voided) state"
+    },
+    {
+      "code": 6021,
+      "name": "sweepTimelockActive",
+      "msg": "Sweep timelock has not elapsed"
+    },
+    {
+      "code": 6022,
       "name": "overflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6023,
+      "name": "kickoffNotReached",
+      "msg": "Match has not kicked off yet"
     }
   ],
   "types": [
@@ -880,6 +977,22 @@ export type Propchain = {
               "When the pending result may be finalized."
             ],
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "poolSwept",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bet",
+            "type": "pubkey"
+          },
+          {
+            "name": "residual",
+            "type": "u64"
           }
         ]
       }

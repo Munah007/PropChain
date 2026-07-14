@@ -48,4 +48,6 @@ pub enum PropChainError {
     SweepTimelockActive,
     #[msg("Arithmetic overflow")]
     Overflow,
+    #[msg("Match has not kicked off yet")]
+    KickoffNotReached,
 }

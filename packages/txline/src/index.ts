@@ -128,6 +128,9 @@ export class TxLineClient {
   config: (typeof TXLINE_CONFIG)[TxLineNetwork];
   creds: TxLineCredentials | null = null;
   statePath: string | null;
+  // Last SSE `id:` seen per stream path — replayed as Last-Event-ID on
+  // reconnect so a server that supports resumption can skip what we have.
+  private lastEventIds = new Map<string, string>();
 
   constructor(network: TxLineNetwork = "devnet", statePath: string | null = null) {
     this.network = network;
@@ -233,17 +236,21 @@ export class TxLineClient {
     return this.request(`/api/scores/stat-validation?${qs}`);
   }
 
-  /// Async generator over an SSE stream (scores or odds).
+  /// Async generator over an SSE stream (scores or odds). One generator is
+  /// one connection; the caller owns the reconnect loop. Hardening: replays
+  /// Last-Event-ID on reconnect (if the server sends `id:` lines), and a
+  /// malformed frame is logged and skipped — it never kills the loop.
   async *stream(path: string): AsyncGenerator<{ event: string | null; data: any }> {
     if (!this.creds) throw new Error("Call ensureCredentials first");
-    const res = await fetch(`${this.config.apiOrigin}${path}`, {
-      headers: {
-        Authorization: `Bearer ${this.creds.jwt}`,
-        "X-Api-Token": this.creds.apiToken,
-        Accept: "text/event-stream",
-        "Cache-Control": "no-cache",
-      },
-    });
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.creds.jwt}`,
+      "X-Api-Token": this.creds.apiToken,
+      Accept: "text/event-stream",
+      "Cache-Control": "no-cache",
+    };
+    const lastEventId = this.lastEventIds.get(path);
+    if (lastEventId != null) headers["Last-Event-ID"] = lastEventId;
+    const res = await fetch(`${this.config.apiOrigin}${path}`, { headers });
     if (!res.ok || !res.body) throw new Error(`Stream ${path} failed: ${res.status}`);
 
     const reader = res.body.getReader();
@@ -262,11 +269,22 @@ export class TxLineClient {
         for (const line of raw.split("\n")) {
           if (line.startsWith("event:")) event = line.slice(6).trim();
           else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+          else if (line.startsWith("id:")) {
+            const id = line.slice(3).trim();
+            if (id && !id.includes("\u0000")) this.lastEventIds.set(path, id); // spec: ids containing NUL are ignored
+          }
         }
         if (dataLines.length) {
           const joined = dataLines.join("\n");
-          let data: any = joined;
-          try { data = JSON.parse(joined); } catch { /* keep raw */ }
+          let data: any;
+          try {
+            data = JSON.parse(joined);
+          } catch (err) {
+            console.error(
+              `[txline] skipping malformed frame on ${path}: ${(err as Error).message} — ${joined.slice(0, 120)}`
+            );
+            continue;
+          }
           yield { event, data };
         }
       }

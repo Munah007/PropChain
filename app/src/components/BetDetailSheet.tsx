@@ -5,8 +5,10 @@
 
 import { useState } from "react";
 import { api, type Bet, type Fixture, type Position, type Session } from "@/lib/api";
+import { usePoll } from "@/lib/hooks";
 import {
   betTitle,
+  consensusForOver,
   friendlyError,
   formatProofTime,
   sideLabels,
@@ -15,6 +17,7 @@ import {
   matchup,
   money,
   payoutIfWins,
+  poolImpliedOver,
   proofBadge,
   pusdc,
   shortAddress,
@@ -50,6 +53,11 @@ export function BetDetailSheet({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSig, setLastSig] = useState<string | null>(null);
+  const { data: odds } = usePoll(
+    () => (bet ? api.odds(Number(bet.fixtureId)) : Promise.resolve(null)),
+    60000,
+    [bet?.fixtureId]
+  );
 
   if (!bet) return null;
   const fixture = fixtures.find((f) => String(f.fixtureId) === bet.fixtureId);
@@ -139,7 +147,7 @@ export function BetDetailSheet({
         {stakeable && (
           <div className="rounded-xl border border-hairline bg-raised p-3">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-3">
-              Stake · closes <Countdown ts={bet.kickoffTs} /> before kickoff
+              Stake · closes at kickoff, in <Countdown ts={bet.kickoffTs} />
             </p>
             <div className="flex gap-2">
               <div className="flex flex-1 overflow-hidden rounded-lg border border-hairline">
@@ -192,6 +200,25 @@ export function BetDetailSheet({
                 )}
               </p>
             )}
+            {(() => {
+              const consensus = consensusForOver(bet, odds ?? null);
+              if (consensus == null) return null;
+              const implied = poolImpliedOver(bet);
+              const overProb = effectiveSide === "over" ? consensus : 1 - consensus;
+              return (
+                <p className="tnum mt-1.5 font-mono text-xs text-ink-3">
+                  TxLINE consensus puts “{labelOf(effectiveSide)}” at{" "}
+                  <span className="font-semibold text-ink-2">{Math.round(overProb * 100)}%</span>
+                  {implied != null && (
+                    <>
+                      {" "}— this pool pays as if it were{" "}
+                      {Math.round((effectiveSide === "over" ? implied : 1 - implied) * 100)}%
+                    </>
+                  )}
+                  .
+                </p>
+              );
+            })()}
             {position && (
               <p className="mt-1.5 text-xs text-ink-3">
                 Your position: {money(pusdc(position.amount))} pUSDC on “{labelOf(position.side)}” — the other side is locked (one side per bet).
@@ -237,7 +264,11 @@ export function BetDetailSheet({
                     {step.label}
                     {step.live && bet.pending && (
                       <span className="tnum ml-2 text-xs font-normal text-warning">
-                        challenge window · <Countdown ts={bet.pending.challengeDeadlineTs} />
+                        {bet.pending.challengeDeadlineTs > Math.floor(Date.now() / 1000) ? (
+                          <>challenge window · <Countdown ts={bet.pending.challengeDeadlineTs} /></>
+                        ) : (
+                          "window closed · finalizing…"
+                        )}
                       </span>
                     )}
                   </p>

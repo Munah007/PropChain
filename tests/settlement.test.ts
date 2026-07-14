@@ -21,6 +21,7 @@ import {
 } from "@solana/web3.js";
 import {
   MINT_SIZE,
+  MintLayout,
   TOKEN_PROGRAM_ID,
   AccountLayout,
   createInitializeMint2Instruction,
@@ -48,6 +49,29 @@ const PROOF_FINALISED = loadProof("finalised"); // seq 1114, ts 1783634788478
 const PROOF_FINAL = loadProof("final"); // seq 1115, ts 1783635207535
 
 const usdc = (n: number) => new BN(n * 1_000_000);
+
+// create_bet only accepts the hardcoded pUSDC mint (state::PUSDC_MINT), and we
+// don't hold that mint's keypair — so bankrun injects a mint account AT that
+// address, with a test keypair as mint authority.
+const PUSDC_MINT = new PublicKey("DWF9ARTjTq3S2jMabyimsaXiVqGVHnVdp1XoRAh3s6Q8");
+const mintAuthority = Keypair.generate();
+
+function pusdcMintAccountData(): Buffer {
+  const data = Buffer.alloc(MintLayout.span);
+  MintLayout.encode(
+    {
+      mintAuthorityOption: 1,
+      mintAuthority: mintAuthority.publicKey,
+      supply: 0n,
+      decimals: 6,
+      isInitialized: true,
+      freezeAuthorityOption: 0,
+      freezeAuthority: PublicKey.default,
+    },
+    data
+  );
+  return data;
+}
 
 let context: Awaited<ReturnType<typeof startAnchor>>;
 let client: any;
@@ -247,6 +271,15 @@ before(async () => {
           executable: false,
         },
       },
+      {
+        address: PUSDC_MINT,
+        info: {
+          lamports: 1_461_600, // rent-exempt for an 82-byte mint
+          data: pusdcMintAccountData(),
+          owner: TOKEN_PROGRAM_ID,
+          executable: false,
+        },
+      },
     ]
   );
   client = context.banksClient;
@@ -256,30 +289,21 @@ before(async () => {
   const idl = JSON.parse(readFileSync(new URL("../target/idl/propchain.json", import.meta.url), "utf8"));
   program = new anchor.Program(idl, provider as any);
 
-  // fund users + set up mock USDC
-  const mintKp = Keypair.generate();
-  usdcMint = mintKp.publicKey;
-  const rent = await client.getRent();
+  // fund users + mint pUSDC (the mint account itself was injected at startup)
+  usdcMint = PUSDC_MINT;
   aliceToken = getAssociatedTokenAddressSync(usdcMint, alice.publicKey);
   bobToken = getAssociatedTokenAddressSync(usdcMint, bob.publicKey);
   await processIxs(
     [
       SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: alice.publicKey, lamports: 10_000_000_000 }),
       SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: bob.publicKey, lamports: 10_000_000_000 }),
-      SystemProgram.createAccount({
-        fromPubkey: payer.publicKey,
-        newAccountPubkey: usdcMint,
-        space: MINT_SIZE,
-        lamports: Number(rent.minimumBalance(BigInt(MINT_SIZE))),
-        programId: TOKEN_PROGRAM_ID,
-      }),
-      createInitializeMint2Instruction(usdcMint, 6, payer.publicKey, null),
+      SystemProgram.transfer({ fromPubkey: payer.publicKey, toPubkey: mintAuthority.publicKey, lamports: 1_000_000_000 }),
       createAssociatedTokenAccountInstruction(payer.publicKey, aliceToken, alice.publicKey, usdcMint),
       createAssociatedTokenAccountInstruction(payer.publicKey, bobToken, bob.publicKey, usdcMint),
-      createMintToInstruction(usdcMint, aliceToken, payer.publicKey, 1_000_000_000n),
-      createMintToInstruction(usdcMint, bobToken, payer.publicKey, 1_000_000_000n),
+      createMintToInstruction(usdcMint, aliceToken, mintAuthority.publicKey, 1_000_000_000n),
+      createMintToInstruction(usdcMint, bobToken, mintAuthority.publicKey, 1_000_000_000n),
     ],
-    [mintKp]
+    [mintAuthority]
   );
 });
 
@@ -464,4 +488,124 @@ test("create_bet rejects malformed markets", async () => {
     createBetAndWarpPastKickoff({ kind: { bothScore: {} }, statKeyA: 1, statKeyB: 2, op: { add: {} } }),
     /InvalidMarket/
   );
+});
+
+test("create_bet rejects any mint other than pUSDC", async () => {
+  const rogueMintKp = Keypair.generate();
+  const rent = await client.getRent();
+  await processIxs(
+    [
+      SystemProgram.createAccount({
+        fromPubkey: payer.publicKey,
+        newAccountPubkey: rogueMintKp.publicKey,
+        space: MINT_SIZE,
+        lamports: Number(rent.minimumBalance(BigInt(MINT_SIZE))),
+        programId: TOKEN_PROGRAM_ID,
+      }),
+      createInitializeMint2Instruction(rogueMintKp.publicKey, 6, payer.publicKey, null),
+    ],
+    [rogueMintKp]
+  );
+  const nonce = nonceCounter++;
+  const { bet, pool } = betPdas(nonce);
+  await expectError(
+    program.methods
+      .createBet({
+        nonce: new BN(nonce),
+        fixtureId: new BN(FIXTURE_ID),
+        statKeyA: 7,
+        statKeyB: 8,
+        op: { add: {} },
+        kind: { line: {} },
+        comparison: { greater: {} },
+        threshold: 9,
+        kickoffTs: new BN(Number(await now()) + 1000),
+      })
+      .accounts({
+        creator: alice.publicKey,
+        bet,
+        usdcMint: rogueMintKp.publicKey,
+        pool,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([alice])
+      .rpc(),
+    "InvalidMint"
+  );
+});
+
+// ---------- sweep ----------
+
+const sweepIx = (creator: Keypair, creatorToken: PublicKey, bet: PublicKey, pool: PublicKey) =>
+  program.methods
+    .sweep()
+    .accounts({
+      creator: creator.publicKey,
+      bet,
+      pool,
+      creatorToken,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    })
+    .signers([creator])
+    .preInstructions([uniqIx()])
+    .rpc();
+
+test("sweep: gates (timelock, creator-only), then reclaims unclaimed residual and closes the vault", async () => {
+  const { bet, pool } = await createBetAndWarpPastKickoff({
+    threshold: 9, // corners 10 > 9 → Over (alice) wins
+    overStake: usdc(100),
+    underStake: usdc(40),
+  });
+  await propose(bet, PROOF_FINAL);
+  await warpBy(91 * 60);
+  await finalize(bet);
+  assert.ok((await program.account.betConfig.fetch(bet)).status.settled);
+
+  // Settled, but the 7-day post-void_after window hasn't elapsed.
+  await expectError(sweepIx(alice, aliceToken, bet, pool), "SweepTimelockActive");
+
+  // Past the sweep timelock (48h void timelock + 7 days, measured from kickoff).
+  await warpBy(48 * 3600 + 7 * 86_400);
+  await expectError(sweepIx(bob, bobToken, bet, pool), "NotCreator");
+
+  // Winner never claimed — the full 140 pool is the residual, swept to creator.
+  const before = await tokenBalance(aliceToken);
+  await sweepIx(alice, aliceToken, bet, pool);
+  const after = await tokenBalance(aliceToken);
+  assert.equal(after - before, 140_000_000n);
+  assert.equal(await client.getAccount(pool), null); // vault closed
+
+  // BetConfig survives as the on-chain settlement record…
+  assert.ok((await program.account.betConfig.fetch(bet)).status.settled);
+  // …but a claim after sweep fails: the vault no longer exists.
+  await assert.rejects(claim(alice, aliceToken, bet, pool));
+});
+
+test("sweep: rejected while the bet is not in a terminal state", async () => {
+  const { bet, pool } = await createBetAndWarpPastKickoff({
+    overStake: usdc(5),
+    underStake: usdc(5),
+  });
+  // Way past every timelock, but the bet was never settled or voided.
+  await warpBy(48 * 3600 + 8 * 86_400);
+  await expectError(sweepIx(alice, aliceToken, bet, pool), "NotTerminal");
+});
+
+test("sweep: after void + full refunds, sweeps a zero residual and still closes the vault", async () => {
+  const { bet, pool } = await createBetAndWarpPastKickoff({
+    overStake: usdc(10),
+    underStake: usdc(10),
+  });
+  await warpBy(48 * 3600 + 60);
+  await voidBet(bet);
+  await claim(alice, aliceToken, bet, pool);
+  await claim(bob, bobToken, bet, pool);
+  assert.equal(await tokenBalance(pool), 0n);
+
+  await warpBy(7 * 86_400);
+  const before = await tokenBalance(aliceToken);
+  await sweepIx(alice, aliceToken, bet, pool);
+  assert.equal(await tokenBalance(aliceToken), before); // nothing left to sweep
+  assert.equal(await client.getAccount(pool), null); // rent reclaimed, vault closed
 });

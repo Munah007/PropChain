@@ -656,6 +656,11 @@
       "code": 6022,
       "name": "Overflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6023,
+      "name": "KickoffNotReached",
+      "msg": "Match has not kicked off yet"
     }
   ],
   "types": [

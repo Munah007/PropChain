@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type Session } from "./api";
+import { api, setSessionToken, type Session } from "./api";
 
 /** Poll an async source on an interval; refetch() for instant refresh. */
 export function usePoll<T>(fn: () => Promise<T>, intervalMs: number, deps: unknown[] = []) {
@@ -41,6 +41,10 @@ export function useSession() {
     setLoading(true);
     try {
       const s = await api.session(userKey, name);
+      if (s.sessionToken) {
+        setSessionToken(s.sessionToken);
+        localStorage.setItem("propchain.sessionToken", s.sessionToken);
+      }
       setSession(s);
       localStorage.setItem("propchain.userKey", userKey);
       return s;
@@ -50,12 +54,22 @@ export function useSession() {
   }, []);
 
   useEffect(() => {
+    // Restore the bearer token BEFORE the reload /session call — a returning
+    // session bypasses the faucet throttle only when it presents its token.
+    setSessionToken(localStorage.getItem("propchain.sessionToken"));
     const saved = localStorage.getItem("propchain.userKey");
-    if (saved) refresh(saved).catch(() => localStorage.removeItem("propchain.userKey"));
+    if (saved)
+      refresh(saved).catch(() => {
+        localStorage.removeItem("propchain.userKey");
+        localStorage.removeItem("propchain.sessionToken");
+        setSessionToken(null);
+      });
   }, [refresh]);
 
   const signOut = useCallback(() => {
     localStorage.removeItem("propchain.userKey");
+    localStorage.removeItem("propchain.sessionToken");
+    setSessionToken(null);
     setSession(null);
   }, []);
 

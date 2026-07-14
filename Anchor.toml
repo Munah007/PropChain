@@ -21,9 +21,14 @@ wallet = "~/.config/solana/id.json"
 [scripts]
 test = "node --test tests/propchain.test.ts"
 
-# Day 2: clone TxLINE txoracle (+ daily roots PDAs) into the local validator
-# for propose_settlement CPI tests:
-#   [test.validator]
-#   url = "https://api.devnet.solana.com"
-#   [[test.validator.clone]]
-#   address = "6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J"
+# agave 4.x rejects an unspecified (0.0.0.0) gossip address — pin to loopback.
+[test.validator]
+bind_address = "127.0.0.1"
+
+# create_bet only accepts the hardcoded pUSDC mint; the local validator gets a
+# mint at that address whose authority is the committed test-only keypair
+# tests/fixtures/pusdc-mint-authority.json. (Settlement/CPI paths are covered
+# by the bankrun suite: npm run test:settlement.)
+[[test.validator.account]]
+address = "DWF9ARTjTq3S2jMabyimsaXiVqGVHnVdp1XoRAh3s6Q8"
+filename = "tests/fixtures/pusdc-mint.json"

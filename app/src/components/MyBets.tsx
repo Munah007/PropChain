@@ -6,7 +6,7 @@
 
 import { useMemo } from "react";
 import type { Bet, Fixture, Position } from "@/lib/api";
-import { betTitle, matchup, money, positionSummary, pusdc, sideLabels } from "@/lib/format";
+import { betTitle, matchup, money, positionSummary, proofBadge, pusdc, sideLabels } from "@/lib/format";
 import { Sheet } from "./ui";
 
 const TONE: Record<string, string> = {
@@ -81,6 +81,7 @@ export function MyBets({
           <div className="space-y-2">
             {rows.map(({ bet, pos, summary }) => {
               const labels = sideLabels(bet, fixtures);
+              const proof = proofBadge(bet);
               return (
                 <button
                   key={pos.address}
@@ -98,6 +99,18 @@ export function MyBets({
                         {pos.side === "over" ? labels.over : labels.under}
                       </span>
                     </p>
+                    {proof && (
+                      <span
+                        title={proof.title}
+                        className={`mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                          proof.provisional
+                            ? "border-warning/40 bg-warning/10 text-warning"
+                            : "border-good/40 bg-good/10 text-good"
+                        }`}
+                      >
+                        {proof.provisional ? "◷" : "✓"} {proof.label}
+                      </span>
+                    )}
                   </div>
                   <div className="shrink-0 text-right">
                     <p className={`text-sm font-bold ${TONE[summary.tone]}`}>{summary.label}</p>

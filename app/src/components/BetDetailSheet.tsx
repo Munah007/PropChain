@@ -8,14 +8,17 @@ import { api, type Bet, type Fixture, type Position, type Session } from "@/lib/
 import {
   betTitle,
   friendlyError,
+  formatProofTime,
   sideLabels,
   explorerUrl,
   kickoffLabel,
   matchup,
   money,
   payoutIfWins,
+  proofBadge,
   pusdc,
   shortAddress,
+  TXORACLE_PROGRAM_ID,
 } from "@/lib/format";
 import { Button, Countdown, Sheet, StatusPill } from "./ui";
 
@@ -232,17 +235,36 @@ export function BetDetailSheet({
         </div>
 
         <div className="rounded-xl border border-hairline bg-raised p-3 text-xs leading-relaxed">
-          <p className="mb-1 font-medium uppercase tracking-wide text-ink-3">Verify it yourself</p>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <p className="font-medium uppercase tracking-wide text-ink-3">Verify it yourself</p>
+            {proofBadge(bet) && (
+              <span
+                title={proofBadge(bet)!.title}
+                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                  proofBadge(bet)!.provisional
+                    ? "border-warning/40 bg-warning/10 text-warning"
+                    : "border-good/40 bg-good/10 text-good"
+                }`}
+              >
+                {proofBadge(bet)!.provisional ? "◷" : "✓"} {proofBadge(bet)!.label}
+              </span>
+            )}
+          </div>
           <p className="text-ink-3">
             No admin key can decide this bet. Settlement requires a Merkle proof from TxLINE&apos;s
             oracle, verified by CPI into their on-chain program — inspect every transaction:
           </p>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+          <div className="mt-2 flex flex-col gap-1">
             <a className="text-over hover:underline" href={explorerUrl(bet.address)} target="_blank" rel="noreferrer">
               Bet account {shortAddress(bet.address)} ↗
             </a>
+            <a className="text-over hover:underline" href={explorerUrl(TXORACLE_PROGRAM_ID)} target="_blank" rel="noreferrer">
+              TxLINE verifier program {shortAddress(TXORACLE_PROGRAM_ID)} ↗
+            </a>
             {bet.pending && (
-              <span className="tnum text-ink-2">proof event ts {bet.pending.proofTs}</span>
+              <span className="tnum text-ink-2">
+                Proof anchored at {formatProofTime(bet.pending.proofTs)}
+              </span>
             )}
           </div>
           {lastSig && (

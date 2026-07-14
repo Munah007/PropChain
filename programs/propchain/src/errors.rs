@@ -38,6 +38,14 @@ pub enum PropChainError {
     NotAWinner,
     #[msg("Already claimed")]
     AlreadyClaimed,
+    #[msg("Stake mint is not the accepted pUSDC mint")]
+    InvalidMint,
+    #[msg("Only the bet creator may sweep")]
+    NotCreator,
+    #[msg("Bet is not in a terminal (settled/voided) state")]
+    NotTerminal,
+    #[msg("Sweep timelock has not elapsed")]
+    SweepTimelockActive,
     #[msg("Arithmetic overflow")]
     Overflow,
 }

@@ -140,7 +140,8 @@
           }
         },
         {
-          "name": "usdc_mint"
+          "name": "usdc_mint",
+          "address": "DWF9ARTjTq3S2jMabyimsaXiVqGVHnVdp1XoRAh3s6Q8"
         },
         {
           "name": "pool",
@@ -363,6 +364,64 @@
       ]
     },
     {
+      "name": "sweep",
+      "docs": [
+        "Creator-only, post-claim-window: sweep the vault's residual (rounding",
+        "dust + unclaimed stakes) and reclaim its rent."
+      ],
+      "discriminator": [
+        40,
+        23,
+        234,
+        175,
+        14,
+        61,
+        154,
+        177
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "bet",
+          "writable": true
+        },
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "bet"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator_token",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "void_bet",
       "docs": [
         "Permissionless safety valve: void a never-settled bet after",
@@ -440,6 +499,19 @@
         150,
         248,
         33
+      ]
+    },
+    {
+      "name": "PoolSwept",
+      "discriminator": [
+        114,
+        164,
+        154,
+        10,
+        230,
+        76,
+        10,
+        223
       ]
     },
     {
@@ -562,6 +634,26 @@
     },
     {
       "code": 6018,
+      "name": "InvalidMint",
+      "msg": "Stake mint is not the accepted pUSDC mint"
+    },
+    {
+      "code": 6019,
+      "name": "NotCreator",
+      "msg": "Only the bet creator may sweep"
+    },
+    {
+      "code": 6020,
+      "name": "NotTerminal",
+      "msg": "Bet is not in a terminal (settled/voided) state"
+    },
+    {
+      "code": 6021,
+      "name": "SweepTimelockActive",
+      "msg": "Sweep timelock has not elapsed"
+    },
+    {
+      "code": 6022,
       "name": "Overflow",
       "msg": "Arithmetic overflow"
     }
@@ -874,6 +966,22 @@
               "When the pending result may be finalized."
             ],
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolSwept",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bet",
+            "type": "pubkey"
+          },
+          {
+            "name": "residual",
+            "type": "u64"
           }
         ]
       }

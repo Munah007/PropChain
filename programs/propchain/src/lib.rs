@@ -59,4 +59,10 @@ pub mod propchain {
     pub fn claim(ctx: Context<Claim>) -> Result<()> {
         instructions::claim::handler(ctx)
     }
+
+    /// Creator-only, post-claim-window: sweep the vault's residual (rounding
+    /// dust + unclaimed stakes) and reclaim its rent.
+    pub fn sweep(ctx: Context<Sweep>) -> Result<()> {
+        instructions::sweep::handler(ctx)
+    }
 }

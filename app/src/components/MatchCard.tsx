@@ -7,6 +7,7 @@
 import type { Bet, Fixture, Position } from "@/lib/api";
 import { kickoffLabel, money, pusdc } from "@/lib/format";
 import { BetCard } from "./BetCard";
+import { LiveScore } from "./LiveScore";
 import { Countdown } from "./ui";
 
 export interface MatchGroup {
@@ -61,11 +62,21 @@ export function MatchCard({
           <h3 className="truncate text-base font-bold tracking-tight text-ink">{title}</h3>
           <p className="tnum mt-0.5 font-mono text-xs text-ink-3">
             {phase === "live" ? (
-              <span className="font-semibold text-critical">LIVE</span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="font-semibold text-critical">LIVE</span>
+                {group.fixture && (
+                  <LiveScore fixtureId={group.fixture.fixtureId} variant="inline" live />
+                )}
+              </span>
             ) : phase === "upcoming" ? (
               <>
                 {kickoffLabel(kickoff)} · <Countdown ts={kickoff} />
               </>
+            ) : group.fixture ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span>Full time</span>
+                <LiveScore fixtureId={group.fixture.fixtureId} variant="inline" live={false} />
+              </span>
             ) : (
               "Full time"
             )}

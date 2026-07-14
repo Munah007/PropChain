@@ -202,6 +202,63 @@ export function explorerUrl(address: string): string {
   return `https://explorer.solana.com/address/${address}?cluster=devnet`;
 }
 
+// TxLINE's on-chain txoracle program (devnet). Every settlement is verified by
+// a CPI into this program's validate_stat — no PropChain admin key can decide a
+// bet. Judges can open it on Explorer straight from the proof panel.
+export const TXORACLE_PROGRAM_ID = "6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J";
+
+/**
+ * Format an on-chain proof timestamp (i64) as a readable UTC instant. TxLINE
+ * event timestamps come through as either seconds or milliseconds depending on
+ * the stat; detect by magnitude so a demo never shows a date off by 1000×.
+ */
+export function formatProofTime(raw: string | number): string {
+  const n = typeof raw === "string" ? Number(raw) : raw;
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  const ms = n >= 1e12 ? n : n * 1000;
+  return new Date(ms).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }) + " UTC";
+}
+
+export interface ProofBadge {
+  label: string;
+  title: string;
+  /** provisional = settled by proof but still inside the challenge window */
+  provisional: boolean;
+}
+
+/**
+ * The trustless-settlement signal for a bet, if it has one. Drives the
+ * "provably settled" chips in the history list and on the detail screen.
+ */
+export function proofBadge(bet: Bet): ProofBadge | null {
+  if (bet.status === "settled") {
+    return {
+      label: "Provably settled",
+      title: "Settled by a TxLINE Merkle proof, verified on-chain by CPI — no operator decided this.",
+      provisional: false,
+    };
+  }
+  if (bet.status === "settlementPending" && bet.pending) {
+    return {
+      label: "Provisional — open to challenge",
+      title: "A Merkle proof was accepted on-chain; any strictly-later proof can still overturn it until the window lapses.",
+      provisional: true,
+    };
+  }
+  if (bet.status === "voided") {
+    return {
+      label: "Voided on-chain",
+      title: "No final proof arrived in time — every stake is refundable.",
+      provisional: false,
+    };
+  }
+  return null;
+}
+
 export type BetOutcome =
   | "open"
   | "in-play"

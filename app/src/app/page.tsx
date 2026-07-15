@@ -269,9 +269,13 @@ export default function Home() {
 
       <div className="relative mx-auto w-full max-w-2xl px-4 pb-28">
         <header className="sticky top-0 z-30 -mx-4 flex items-center justify-between border-b border-hairline bg-page/80 px-4 py-3.5 backdrop-blur-md">
-          <p className="text-lg font-extrabold tracking-tight text-ink">
-            Prop<span className="text-over">Chain</span>
-          </p>
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-mark.png" alt="PropChain logo" className="size-7 rounded-md" />
+            <p className="text-lg font-extrabold tracking-tight text-ink">
+              Prop<span className="text-over">Chain</span>
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setHowOpen(true)}

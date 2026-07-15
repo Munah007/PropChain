@@ -1,14 +1,15 @@
 "use client";
 
-// The board is organised like a sportsbook: one row per MATCH. Expanding a
-// match reveals every market on it (each an on-chain bet), plus an action to
-// open a new market on that fixture.
+// The board reads like a football app: one card per MATCH, flags + scoreline
+// up top so it's scannable at a glance, markets nested inside on expand.
 
-import type { Bet, Fixture, Position } from "@/lib/api";
+import { api, type Bet, type Fixture, type Position } from "@/lib/api";
+import { usePoll } from "@/lib/hooks";
 import { kickoffLabel, money, pusdc } from "@/lib/format";
+import { flag } from "@/lib/flags";
 import { BetCard } from "./BetCard";
-import { LiveScore } from "./LiveScore";
 import { Countdown } from "./ui";
+import { useEffect, useRef, useState } from "react";
 
 export interface MatchGroup {
   key: string; // fixtureId as string
@@ -16,13 +17,23 @@ export interface MatchGroup {
   bets: Bet[];
 }
 
-const MATCH_LENGTH_S = 2.5 * 3600; // rough "probably finished" horizon
+const MATCH_LENGTH_S = 3.5 * 3600; // "probably finished" horizon, covers ET + pens
 
 export function matchPhase(group: MatchGroup, now: number): "live" | "upcoming" | "finished" {
   const kickoff = group.fixture?.kickoffTs ?? group.bets[0]?.kickoffTs ?? 0;
-  const anyBetLive = group.bets.some((b) => b.status === "open" && now >= b.kickoffTs);
-  if (anyBetLive || (now >= kickoff && now < kickoff + MATCH_LENGTH_S)) return now >= kickoff ? "live" : "upcoming";
-  return now < kickoff ? "upcoming" : "finished";
+  if (now < kickoff) return "upcoming";
+  // Time-bounded: a bet stuck Open past the horizon (keeper down, abandoned
+  // fixture) must read as finished/awaiting settlement, never pin LIVE forever.
+  return now < kickoff + MATCH_LENGTH_S ? "live" : "finished";
+}
+
+/** Score digits that pop when they change (goal!). */
+function Goals({ value, pop }: { value: number; pop: boolean }) {
+  return (
+    <span className={`tnum font-mono text-xl font-bold text-ink ${pop ? "score-pop" : ""}`}>
+      {value}
+    </span>
+  );
 }
 
 export function MatchCard({
@@ -45,64 +56,111 @@ export function MatchCard({
   const now = Math.floor(Date.now() / 1000);
   const phase = matchPhase(group, now);
   const kickoff = group.fixture?.kickoffTs ?? group.bets[0]?.kickoffTs ?? 0;
-  const title = group.fixture
-    ? `${group.fixture.home} vs ${group.fixture.away}`
-    : `Fixture ${group.key}`;
+  const home = group.fixture?.home ?? null;
+  const away = group.fixture?.away ?? null;
   const pool = group.bets.reduce((sum, b) => sum + pusdc(b.overTotal) + pusdc(b.underTotal), 0);
   const openCount = group.bets.filter((b) => b.status === "open" && now < b.kickoffTs).length;
 
+  // Fetch the scoreline for live/finished matches we know the fixture of.
+  const showScore = (phase === "live" || phase === "finished") && group.fixture != null;
+  const { data: score } = usePoll(
+    () => (showScore ? api.score(group.fixture!.fixtureId) : Promise.resolve(null)),
+    phase === "live" ? 12000 : 60000,
+    [showScore, group.fixture?.fixtureId, phase]
+  );
+  // TxLINE consensus odds for the expanded match — one fetch feeds every card.
+  const { data: odds } = usePoll(
+    () => (expanded && group.bets.length ? api.odds(Number(group.key)) : Promise.resolve(null)),
+    60000,
+    [expanded, group.key, group.bets.length > 0]
+  );
+
+  // Pop the digits on a goal (not first paint).
+  const prevGoals = useRef<string | null>(null);
+  const [pop, setPop] = useState(false);
+  useEffect(() => {
+    if (!score?.hasScore) return;
+    const g = `${score.home}-${score.away}`;
+    const was = prevGoals.current;
+    prevGoals.current = g;
+    if (was !== null && was !== g) {
+      setPop(true);
+      const t = setTimeout(() => setPop(false), 550);
+      return () => clearTimeout(t);
+    }
+  }, [score]);
+
+  const hasGoals = score?.hasScore ?? false;
+
   return (
-    <section className="overflow-hidden rounded-2xl border border-hairline bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+    <section
+      className={`overflow-hidden rounded-2xl border bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+        phase === "live" ? "border-critical/40" : "border-hairline"
+      }`}
+    >
       <button
         onClick={onToggle}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-3 p-4 text-left transition hover:bg-raised/60 sm:px-5"
+        className="block w-full p-4 text-left transition hover:bg-raised/50 sm:px-5"
       >
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-bold tracking-tight text-ink">{title}</h3>
-          <p className="tnum mt-0.5 font-mono text-xs text-ink-3">
-            {phase === "live" ? (
-              <span className="inline-flex items-center gap-1.5">
-                <span className="font-semibold text-critical">LIVE</span>
-                {group.fixture && (
-                  <LiveScore fixtureId={group.fixture.fixtureId} variant="inline" live />
-                )}
-              </span>
-            ) : phase === "upcoming" ? (
-              <>
-                {kickoffLabel(kickoff)} · <Countdown ts={kickoff} />
-              </>
-            ) : group.fixture ? (
-              <span className="inline-flex items-center gap-1.5">
-                <span>Full time</span>
-                <LiveScore fixtureId={group.fixture.fixtureId} variant="inline" live={false} />
-              </span>
-            ) : (
-              "Full time"
-            )}
-            {group.bets.length > 0 && (
-              <span className="text-ink-3">
-                {" "}· {group.bets.length} market{group.bets.length === 1 ? "" : "s"} ·{" "}
-                {money(pool)} pUSDC pooled
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2.5">
-          {phase === "live" && (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-raised px-2.5 py-0.5 text-xs font-semibold text-ink-2">
+        {/* status strip */}
+        <div className="mb-2.5 flex items-center justify-between">
+          {phase === "live" ? (
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-critical">
               <span className="live-dot size-1.5 rounded-full bg-critical" aria-hidden />
-              Live
+              Live{score?.minute != null ? ` · ${score.minute}'` : ""}
             </span>
+          ) : phase === "upcoming" ? (
+            <span className="tnum font-mono text-[11px] text-ink-3">
+              {kickoffLabel(kickoff)} · <Countdown ts={kickoff} />
+            </span>
+          ) : (
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">Full time</span>
           )}
-          {phase === "upcoming" && openCount > 0 && (
-            <span className="rounded-full border border-hairline bg-raised px-2.5 py-0.5 text-xs font-semibold text-ink-2">
+          {openCount > 0 && (
+            <span className="rounded-full border border-over/30 bg-over/10 px-2 py-0.5 text-[10px] font-bold text-over">
               {openCount} open
             </span>
           )}
+        </div>
+
+        {/* teams + scoreline */}
+        {home && away ? (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="text-xl leading-none" aria-hidden>{flag(home)}</span>
+                <span className="truncate text-[15px] font-semibold text-ink">{home}</span>
+              </div>
+              {hasGoals && <Goals value={score!.home} pop={pop} />}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="text-xl leading-none" aria-hidden>{flag(away)}</span>
+                <span className="truncate text-[15px] font-semibold text-ink">{away}</span>
+              </div>
+              {hasGoals && <Goals value={score!.away} pop={pop} />}
+            </div>
+          </div>
+        ) : (
+          <h3 className="text-[15px] font-semibold text-ink">Match #{group.key}</h3>
+        )}
+
+        {/* meta */}
+        <div className="mt-3 flex items-center justify-between border-t border-hairline pt-2.5">
+          <p className="text-xs text-ink-3">
+            {group.bets.length > 0 ? (
+              <>
+                {group.bets.length} market{group.bets.length === 1 ? "" : "s"} ·{" "}
+                <span className="tnum font-mono">{money(pool)}</span> pUSDC pooled
+              </>
+            ) : (
+              "No markets yet — be first"
+            )}
+          </p>
           <span
             aria-hidden
-            className={`grid size-7 place-items-center rounded-full border border-hairline text-xs text-ink-3 transition-transform ${expanded ? "rotate-180" : ""}`}
+            className={`grid size-6 place-items-center rounded-full border border-hairline text-[10px] text-ink-3 transition-transform ${expanded ? "rotate-180" : ""}`}
           >
             ▾
           </span>
@@ -121,6 +179,7 @@ export function MatchCard({
               key={bet.address}
               bet={bet}
               fixtures={fixtures}
+              odds={odds}
               position={positions.get(bet.address)}
               onOpen={(side) => onOpenBet(bet.address, side)}
               hideMatchup

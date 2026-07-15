@@ -7,9 +7,15 @@ import { SessionBar } from "@/components/SessionBar";
 import { AuthSheet } from "@/components/AuthSheet";
 import { MatchCard, matchPhase, type MatchGroup } from "@/components/MatchCard";
 import { CreateBetSheet } from "@/components/CreateBetSheet";
+import { DemoBanner } from "@/components/DemoBanner";
 import { BetDetailSheet } from "@/components/BetDetailSheet";
-import { MyBets } from "@/components/MyBets";
+import { MyBetsPanel } from "@/components/MyBets";
+import { HowItWorksSheet } from "@/components/HowItWorksSheet";
+import { AgentSheet } from "@/components/AgentSheet";
+import { AccountSheet } from "@/components/AccountSheet";
+import { BottomNav, type Tab } from "@/components/BottomNav";
 import { Toast, type ToastData } from "@/components/ui";
+import { flag } from "@/lib/flags";
 import { positionSummary } from "@/lib/format";
 
 const STATUS_ORDER: Record<Bet["status"], number> = {
@@ -21,23 +27,34 @@ const STATUS_ORDER: Record<Bet["status"], number> = {
 
 const PHASE_ORDER = { live: 0, upcoming: 1, finished: 2 } as const;
 
-const HOW_IT_WORKS = [
-  {
-    n: "01",
-    title: "Pick a match & market",
-    body: "Winner, GG/NG, totals, corners, cards — any World Cup fixture. Set the line or take a side on someone else's.",
-  },
-  {
-    n: "02",
-    title: "Stake either side",
-    body: "In pUSDC. Funds sit in an on-chain escrow no one — including us — can touch.",
-  },
-  {
-    n: "03",
-    title: "Proof pays the winners",
-    body: "At full time a cryptographic proof of the real stat settles every market on-chain. No bookmaker, no admin key.",
-  },
-];
+/** "Today" / "Tomorrow" / "Sat 18 Jul" for a kickoff, relative to now. */
+function dayLabel(ts: number, now: number): string {
+  const startOf = (ms: number) => {
+    const x = new Date(ms);
+    return new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  };
+  const diff = Math.round((startOf(ts * 1000) - startOf(now * 1000)) / 86_400_000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Tomorrow";
+  if (diff === -1) return "Yesterday";
+  return new Date(ts * 1000).toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function SectionLabel({ children, accent }: { children: React.ReactNode; accent?: boolean }) {
+  return (
+    <h2
+      className={`mb-2 mt-5 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] first:mt-0 ${
+        accent ? "text-critical" : "text-ink-3"
+      }`}
+    >
+      {children}
+    </h2>
+  );
+}
 
 export default function Home() {
   const { session, loading, signIn, refresh, signOut } = useSession();
@@ -49,13 +66,29 @@ export default function Home() {
     [session?.userKey]
   );
 
+  const { data: agentInfo, refetch: refetchAgent } = usePoll(
+    () => (session ? api.agent() : Promise.resolve(null)),
+    20000,
+    [session?.userKey]
+  );
+  const agentActive = agentInfo?.config.enabled ?? false;
+  const agentTeams = agentInfo?.config.teams ?? [];
+  const agentBets = useMemo(
+    () => new Set((agentInfo?.recent ?? []).map((a) => a.betAddress)),
+    [agentInfo]
+  );
+
+  const [tab, setTab] = useState<Tab>("matches");
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [creating, setCreating] = useState<{ open: boolean; fixtureId: number | null }>({
     open: false,
     fixtureId: null,
   });
   const [selected, setSelected] = useState<{ address: string; side?: "over" | "under" } | null>(null);
   const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
-  const [myBetsOpen, setMyBetsOpen] = useState(false);
+  const [howOpen, setHowOpen] = useState(false);
+  const [showAllFinished, setShowAllFinished] = useState(false);
   const [auth, setAuth] = useState<{ open: boolean; intent: string | null }>({ open: false, intent: null });
   const pendingAction = useRef<(() => void) | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -67,8 +100,8 @@ export default function Home() {
     toastTimer.current = setTimeout(() => setToast(null), 6000);
   }
 
-  /** Sportsbook grouping: one entry per match — every known fixture plus any
-   *  fixture that has markets — live first, then by kickoff. */
+  /** One entry per match — every known fixture plus any fixture that has
+   *  markets — live first, then upcoming by kickoff, then finished. */
   const matches = useMemo<MatchGroup[]>(() => {
     const now = Math.floor(Date.now() / 1000);
     const byFixture = new Map<string, Bet[]>();
@@ -84,7 +117,7 @@ export default function Home() {
       byFixture.delete(key);
     }
     for (const [key, groupBets] of byFixture) {
-      groups.push({ key, fixture: null, bets: groupBets }); // bets on fixtures the feed no longer lists
+      groups.push({ key, fixture: null, bets: groupBets });
     }
     for (const group of groups) {
       group.bets.sort(
@@ -100,15 +133,6 @@ export default function Home() {
     });
   }, [bets, fixtures]);
 
-  // default-expand the first match that has markets
-  useEffect(() => {
-    if (expandedMatch === null && matches.length) {
-      const first = matches.find((m) => m.bets.length > 0) ?? matches[0];
-      setExpandedMatch(first.key);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matches.length]);
-
   const positionByBet = useMemo(() => new Map((positions ?? []).map((p) => [p.bet, p])), [positions]);
   const allBets = useMemo(() => matches.flatMap((m) => m.bets), [matches]);
   const betByAddress = useMemo(() => new Map(allBets.map((b) => [b.address, b])), [allBets]);
@@ -121,9 +145,40 @@ export default function Home() {
     [positions, betByAddress]
   );
   const selectedBet = allBets.find((b) => b.address === selected?.address) ?? null;
-  const openMarkets = allBets.filter(
-    (b) => b.status === "open" && b.kickoffTs > Math.floor(Date.now() / 1000)
-  ).length;
+
+  // Board sections: live pinned, upcoming grouped by day, recent results, and
+  // a collapsed tail of finished fixtures nobody made a market on.
+  const board = useMemo(() => {
+    const now = Math.floor(Date.now() / 1000);
+    const withMarketsOrActive: MatchGroup[] = [];
+    const emptyFinished: MatchGroup[] = [];
+    for (const m of matches) {
+      (m.bets.length > 0 || matchPhase(m, now) !== "finished" ? withMarketsOrActive : emptyFinished).push(m);
+    }
+    const live = withMarketsOrActive.filter((m) => matchPhase(m, now) === "live");
+    const upcoming = withMarketsOrActive.filter((m) => matchPhase(m, now) === "upcoming");
+    const finished = withMarketsOrActive.filter((m) => matchPhase(m, now) === "finished");
+
+    // group upcoming by day, preserving ascending-kickoff order
+    const days: { label: string; matches: MatchGroup[] }[] = [];
+    for (const m of upcoming) {
+      const ts = m.fixture?.kickoffTs ?? m.bets[0]?.kickoffTs ?? now;
+      const label = dayLabel(ts, now);
+      const last = days[days.length - 1];
+      if (last && last.label === label) last.matches.push(m);
+      else days.push({ label, matches: [m] });
+    }
+    return { live, days, finished, emptyFinished };
+  }, [matches]);
+
+  // default-expand the first match that has markets
+  useEffect(() => {
+    if (expandedMatch === null && matches.length) {
+      const first = matches.find((m) => m.bets.length > 0) ?? matches[0];
+      setExpandedMatch(first.key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches.length]);
 
   function onChainChange(message?: string, signature?: string) {
     refetchBets();
@@ -150,141 +205,278 @@ export default function Home() {
     requireAuth("open a market", doOpen);
   }
 
+  function goBets() {
+    if (session) return setTab("bets");
+    requireAuth("see your bets", () => setTab("bets"));
+  }
+
+  function goClaim() {
+    if (session) return setTab("claim");
+    requireAuth("claim your winnings", () => setTab("claim"));
+  }
+
+  function openAccount() {
+    if (session) return setAccountOpen(true);
+    requireAuth("open your account", () => setAccountOpen(true));
+  }
+
+  function openAgent() {
+    if (session) return setAgentOpen(true);
+    requireAuth("set up your 12th Man", () => setAgentOpen(true));
+  }
+
+  const agentBanner = (
+    <button
+      onClick={openAgent}
+      className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-over/30 bg-over/5 p-4 text-left transition hover:bg-over/10"
+    >
+      <span className="text-2xl leading-none" aria-hidden>🛡️</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold text-ink">
+          {agentActive && agentTeams.length
+            ? `12th Man is defending ${agentTeams.map((t) => `${flag(t)} ${t}`).join(", ")}`
+            : "Activate your 12th Man"}
+        </span>
+        <span className="block text-xs leading-snug text-ink-3">
+          {agentActive
+            ? "Auto-backing your team whenever someone bets against them"
+            : "An agent that auto-backs your team against anyone who doubts them"}
+        </span>
+      </span>
+      <span className={`shrink-0 text-lg ${agentActive ? "text-good" : "text-over"}`}>
+        {agentActive ? "●" : "→"}
+      </span>
+    </button>
+  );
+
+  const matchCardProps = (group: MatchGroup) => ({
+    group,
+    fixtures: fixtures ?? [],
+    positions: positionByBet,
+    expanded: expandedMatch === group.key,
+    onToggle: () => setExpandedMatch(expandedMatch === group.key ? null : group.key),
+    onOpenBet: (address: string, side?: "over" | "under") => setSelected({ address, side }),
+    onAddMarket: () => openCreate(group.fixture?.fixtureId ?? null),
+  });
+
   return (
     <div className="relative min-h-screen">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[420px]"
-        style={{
-          background: "radial-gradient(600px 320px at 25% 0%, rgba(57,135,229,0.10), transparent 70%)",
-        }}
+        className="pointer-events-none absolute inset-x-0 top-0 h-[320px]"
+        style={{ background: "radial-gradient(600px 280px at 30% 0%, rgba(57,135,229,0.10), transparent 70%)" }}
       />
 
-      <div className="relative mx-auto w-full max-w-2xl px-4 pb-24">
-        <header className="flex items-center justify-between py-5">
+      <div className="relative mx-auto w-full max-w-2xl px-4 pb-28">
+        <header className="sticky top-0 z-30 -mx-4 flex items-center justify-between border-b border-hairline bg-page/80 px-4 py-3.5 backdrop-blur-md">
           <p className="text-lg font-extrabold tracking-tight text-ink">
             Prop<span className="text-over">Chain</span>
           </p>
-          <SessionBar
-            session={session}
-            betCount={positions?.length ?? 0}
-            claimable={claimableCount}
-            onMyBets={() => setMyBetsOpen(true)}
-            onSignInClick={() => requireAuth("get started")}
-            onSignOut={signOut}
-          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setHowOpen(true)}
+              className="grid size-8 place-items-center rounded-full border border-hairline text-ink-3 transition hover:bg-raised hover:text-ink"
+              aria-label="How it works"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+                <circle cx="12" cy="12" r="9.5" />
+                <path d="M12 11v5" />
+                <circle cx="12" cy="7.5" r="0.6" fill="currentColor" />
+              </svg>
+            </button>
+            <SessionBar
+              session={session}
+              onSignInClick={() => requireAuth("get started")}
+              onAccount={openAccount}
+            />
+          </div>
         </header>
 
-        <section className="pb-8 pt-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-over">
-            World Cup 2026 · on Solana devnet
-          </p>
-          <h1 className="mt-3 text-3xl font-extrabold leading-[1.15] tracking-tight text-ink sm:text-4xl">
-            Bet on match stats.
-            <br />
-            <span className="text-ink-2">Settled by proof, not promises.</span>
-          </h1>
-          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-2">
-            Peer-to-peer prop bets on live World Cup data. Every result is decided by a
-            cryptographic proof verified on-chain — never by a bookmaker.
-          </p>
-          <div className="mt-6 flex items-center gap-3">
-            <button
-              onClick={() => openCreate()}
-              className="rounded-xl bg-over px-5 py-3 text-sm font-bold text-white shadow-[0_8px_24px_rgba(57,135,229,0.35)] transition hover:brightness-110"
-            >
-              + Open a market
-            </button>
-            <a
-              href="#how"
-              className="rounded-xl border border-hairline px-5 py-3 text-sm font-semibold text-ink-2 transition hover:bg-surface hover:text-ink"
-            >
-              How it works
-            </a>
-          </div>
-        </section>
+        {tab === "matches" ? (
+          <>
+            <section className="py-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-over">
+                World Cup 2026 · settled by TxLINE proof
+              </p>
+              <h1 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-[28px]">
+                Prop bets, settled by proof — not a bookmaker.
+              </h1>
+              <button
+                onClick={() => setHowOpen(true)}
+                className="mt-2 text-sm font-semibold text-over transition hover:brightness-110"
+              >
+                How it works →
+              </button>
+            </section>
 
-        <section id="how" className="mb-10 grid gap-2.5 sm:grid-cols-3">
-          {HOW_IT_WORKS.map((step) => (
-            <div
-              key={step.n}
-              className="rounded-2xl border border-hairline bg-surface p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-            >
-              <p className="tnum text-[11px] font-bold text-over">{step.n}</p>
-              <h3 className="mt-1.5 text-sm font-bold text-ink">{step.title}</h3>
-              <p className="mt-1 text-xs leading-relaxed text-ink-3">{step.body}</p>
-            </div>
-          ))}
-        </section>
+            {agentBanner}
 
-        <section aria-label="Matches">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-ink-2">Matches</h2>
-            <p className="text-xs text-ink-3">
-              {matches.length} fixtures · {openMarkets} open market{openMarkets === 1 ? "" : "s"} · live
-            </p>
-          </div>
+            {board.live.length === 0 && (
+              <DemoBanner
+                onLaunched={(fixtureKey, message) => {
+                  refetchBets();
+                  setExpandedMatch(fixtureKey);
+                  celebrate(message);
+                }}
+              />
+            )}
 
-          <div className="space-y-2.5">
             {matches.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-hairline py-14 text-center">
+              <div className="rounded-2xl border border-dashed border-hairline py-16 text-center">
                 <p className="text-sm text-ink-2">
-                  {fixtures === null ? "Loading fixtures…" : "No fixtures in the feed right now."}
+                  {fixtures === null && bets === null
+                    ? "Loading fixtures…"
+                    : "No fixtures right now — check back soon."}
                 </p>
               </div>
             )}
-            {matches.map((group) => (
-              <MatchCard
-                key={group.key}
-                group={group}
-                fixtures={fixtures ?? []}
-                positions={positionByBet}
-                expanded={expandedMatch === group.key}
-                onToggle={() => setExpandedMatch(expandedMatch === group.key ? null : group.key)}
-                onOpenBet={(address, side) => setSelected({ address, side })}
-                onAddMarket={() => openCreate(group.fixture?.fixtureId ?? null)}
-              />
-            ))}
-          </div>
-        </section>
 
-        <footer className="mt-12 border-t border-hairline pt-6 text-center text-xs leading-relaxed text-ink-3">
-          Built for the TxODDS World Cup Hackathon · powered by TxLINE data anchored on Solana ·{" "}
-          <a
-            className="text-ink-2 hover:text-ink"
-            href="https://explorer.solana.com/address/3HwBzjvoM663GwMSveXdNNFVaQ4JdNxQAyAxEdZv7MJU?cluster=devnet"
-            target="_blank"
-            rel="noreferrer"
-          >
-            inspect the program ↗
-          </a>
-        </footer>
+            {board.live.length > 0 && (
+              <>
+                <SectionLabel accent>
+                  <span className="live-dot size-1.5 rounded-full bg-critical" aria-hidden />
+                  Live now
+                </SectionLabel>
+                <div className="space-y-2.5">
+                  {board.live.map((g) => (
+                    <MatchCard key={g.key} {...matchCardProps(g)} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {board.days.map((day) => (
+              <div key={day.label}>
+                <SectionLabel>{day.label}</SectionLabel>
+                <div className="space-y-2.5">
+                  {day.matches.map((g) => (
+                    <MatchCard key={g.key} {...matchCardProps(g)} />
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {board.finished.length > 0 && (
+              <>
+                <SectionLabel>Recent results</SectionLabel>
+                <div className="space-y-2.5">
+                  {board.finished.map((g) => (
+                    <MatchCard key={g.key} {...matchCardProps(g)} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {board.emptyFinished.length > 0 && (
+              <>
+                {showAllFinished && (
+                  <>
+                    <SectionLabel>All finished fixtures</SectionLabel>
+                    <div className="space-y-2.5">
+                      {board.emptyFinished.map((g) => (
+                        <MatchCard key={g.key} {...matchCardProps(g)} />
+                      ))}
+                    </div>
+                  </>
+                )}
+                <button
+                  onClick={() => setShowAllFinished(!showAllFinished)}
+                  className="mt-4 w-full rounded-xl border border-dashed border-hairline py-2.5 text-sm font-semibold text-ink-3 transition hover:text-ink"
+                >
+                  {showAllFinished
+                    ? "Hide finished matches without markets"
+                    : `Browse ${board.emptyFinished.length} more finished fixtures`}
+                </button>
+              </>
+            )}
+          </>
+        ) : (
+          <section className="py-6">
+            <h1 className="mb-1 text-xl font-extrabold tracking-tight text-ink">
+              {tab === "claim" ? "Claim" : "My bets"}
+            </h1>
+            <p className="mb-4 text-sm text-ink-3">
+              {tab === "claim"
+                ? "Winnings and refunds ready to collect."
+                : "Every position you hold and how it's doing."}
+            </p>
+            {session ? (
+              <>
+                {tab === "bets" && agentBanner}
+                <MyBetsPanel
+                  bets={allBets}
+                  positions={positions ?? []}
+                  fixtures={fixtures ?? []}
+                  agentBets={agentBets}
+                  claimableOnly={tab === "claim"}
+                  onOpenBet={(address) => setSelected({ address })}
+                />
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-hairline py-16 text-center">
+                <p className="text-sm text-ink-2">
+                  {tab === "claim" ? "Sign in to claim your winnings." : "Sign in to see your bets."}
+                </p>
+                <button
+                  onClick={() => requireAuth(tab === "claim" ? "claim your winnings" : "see your bets")}
+                  className="mt-3 rounded-xl bg-over px-5 py-2.5 text-sm font-bold text-white transition hover:brightness-110"
+                >
+                  Sign in
+                </button>
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
-      {session && (
-        <MyBets
-          open={myBetsOpen}
-          onClose={() => setMyBetsOpen(false)}
-          bets={allBets}
-          positions={positions ?? []}
-          fixtures={fixtures ?? []}
-          onOpenBet={(address) => setSelected({ address })}
-        />
-      )}
-      <Toast toast={toast} />
-      <AuthSheet
-        open={auth.open}
-        intent={auth.intent}
-        loading={loading}
-        onClose={() => setAuth({ open: false, intent: null })}
-        onSignIn={handleSignIn}
+      <BottomNav
+        tab={tab}
+        onTab={(t) =>
+          t === "bets"
+            ? goBets()
+            : t === "claim"
+              ? goClaim()
+              : t === "account"
+                ? openAccount()
+                : setTab(t)
+        }
+        onCreate={() => openCreate()}
+        claimable={claimableCount}
       />
-      {session && fixtures && (
+
+      <Toast toast={toast} />
+      <HowItWorksSheet open={howOpen} onClose={() => setHowOpen(false)} />
+      <AgentSheet
+        open={agentOpen}
+        onClose={() => setAgentOpen(false)}
+        onChanged={() => {
+          refetchAgent();
+          onChainChange();
+        }}
+      />
+      <AccountSheet
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        session={session}
+        onAgent={() => {
+          setAccountOpen(false);
+          openAgent();
+        }}
+        onHowItWorks={() => {
+          setAccountOpen(false);
+          setHowOpen(true);
+        }}
+        onSignOut={() => {
+          setAccountOpen(false);
+          signOut();
+        }}
+      />
+      {session && (
         <CreateBetSheet
           open={creating.open}
           onClose={() => setCreating({ open: false, fixtureId: null })}
           session={session}
-          fixtures={fixtures}
+          fixtures={fixtures ?? []}
           initialFixtureId={creating.fixtureId}
           onCreated={onChainChange}
         />
@@ -301,6 +493,16 @@ export default function Home() {
           onRequireAuth={(intent) => requireAuth(intent)}
         />
       )}
+      {/* Rendered last on purpose: the auth sheet can be summoned from INSIDE
+          the bet-detail sheet ("Sign in & stake"), and both overlays share
+          z-50 — DOM order is what puts this one on top. */}
+      <AuthSheet
+        open={auth.open}
+        intent={auth.intent}
+        loading={loading}
+        onClose={() => setAuth({ open: false, intent: null })}
+        onSignIn={handleSignIn}
+      />
     </div>
   );
 }

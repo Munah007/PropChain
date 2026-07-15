@@ -23,10 +23,20 @@ export interface CreateBetRequest {
   kickoffTs: number; // unix seconds
 }
 
+// Short cache so the board poll, the keeper, the demo, and every 12th Man
+// tick share ONE getProgramAccounts instead of each hammering the public
+// devnet RPC (which rate-limits hard, 429). In-flight coalescing means
+// concurrent callers await the same request.
+const READ_TTL_MS = Number(process.env.CHAIN_READ_TTL_MS ?? 4000);
+
 @Injectable()
 export class TxsService {
   private program: anchor.Program | null = null;
   private usdcMint: PublicKey | null = null;
+  private betsCache: { at: number; data: any[] } | null = null;
+  private betsInflight: Promise<any[]> | null = null;
+  private posCache = new Map<string, { at: number; data: any[] }>();
+  private posInflight = new Map<string, Promise<any[]>>();
 
   constructor(
     @Inject(SOLANA_CONNECTION) private readonly connection: Connection,
@@ -169,8 +179,24 @@ export class TxsService {
     return this.toBase64(tx, user);
   }
 
-  /** All positions for a wallet (memcmp on UserPosition.user at offset 8+32). */
+  /** All positions for a wallet, cached briefly + coalesced (see READ_TTL_MS). */
   async listPositions(user: PublicKey) {
+    const key = user.toBase58();
+    const cached = this.posCache.get(key);
+    if (cached && Date.now() - cached.at < READ_TTL_MS) return cached.data;
+    const inflight = this.posInflight.get(key);
+    if (inflight) return inflight;
+    const p = this.listPositionsRaw(user)
+      .then((data) => {
+        this.posCache.set(key, { at: Date.now(), data });
+        return data;
+      })
+      .finally(() => this.posInflight.delete(key));
+    this.posInflight.set(key, p);
+    return p;
+  }
+
+  private async listPositionsRaw(user: PublicKey) {
     const { program } = await this.getProgram();
     const positions = await (program.account as any).userPosition.all([
       { memcmp: { offset: 8 + 32, bytes: user.toBase58() } },
@@ -204,7 +230,23 @@ export class TxsService {
     return out;
   }
 
+  /** All bets, cached briefly + coalesced — this is the heaviest RPC call
+   *  (getProgramAccounts) and the most-hit, so sharing it matters most. */
   async listBets() {
+    if (this.betsCache && Date.now() - this.betsCache.at < READ_TTL_MS) return this.betsCache.data;
+    if (this.betsInflight) return this.betsInflight;
+    this.betsInflight = this.listBetsRaw()
+      .then((data) => {
+        this.betsCache = { at: Date.now(), data };
+        return data;
+      })
+      .finally(() => {
+        this.betsInflight = null;
+      });
+    return this.betsInflight;
+  }
+
+  private async listBetsRaw() {
     const { program } = await this.getProgram();
     const bets = await this.safeAll(program, "betConfig");
     return bets.map(({ publicKey, account }: any) => ({

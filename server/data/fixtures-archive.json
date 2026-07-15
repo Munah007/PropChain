@@ -1,0 +1,1220 @@
+[
+ {
+  "fixtureId": 17588316,
+  "home": "Haiti",
+  "away": "Scotland",
+  "kickoffTs": 1781398920,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17926689,
+  "home": "Australia",
+  "away": "Turkey",
+  "kickoffTs": 1781409600,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588318,
+  "home": "Germany",
+  "away": "Curacao",
+  "kickoffTs": 1781456400,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588305,
+  "home": "Netherlands",
+  "away": "Japan",
+  "kickoffTs": 1781467200,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588239,
+  "home": "Ivory Coast",
+  "away": "Ecuador",
+  "kickoffTs": 1781478180,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17926553,
+  "home": "Sweden",
+  "away": "Tunisia",
+  "kickoffTs": 1781488800,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588403,
+  "home": "Spain",
+  "away": "Cape Verde",
+  "kickoffTs": 1781539200,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588230,
+  "home": "Belgium",
+  "away": "Egypt",
+  "kickoffTs": 1781550000,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588311,
+  "home": "Saudi Arabia",
+  "away": "Uruguay",
+  "kickoffTs": 1781561040,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588241,
+  "home": "Iran",
+  "away": "New Zealand",
+  "kickoffTs": 1781571780,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588306,
+  "home": "France",
+  "away": "Senegal",
+  "kickoffTs": 1781636400,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17926828,
+  "home": "Iraq",
+  "away": "Norway",
+  "kickoffTs": 1781647200,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588322,
+  "home": "Argentina",
+  "away": "Algeria",
+  "kickoffTs": 1781658120,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588405,
+  "home": "Austria",
+  "away": "Jordan",
+  "kickoffTs": 1781668920,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17926703,
+  "home": "Portugal",
+  "away": "Congo DR",
+  "kickoffTs": 1781715600,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588228,
+  "home": "England",
+  "away": "Croatia",
+  "kickoffTs": 1781726400,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588406,
+  "home": "Ghana",
+  "away": "Panama",
+  "kickoffTs": 1781737200,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588399,
+  "home": "Uzbekistan",
+  "away": "Colombia",
+  "kickoffTs": 1781748000,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17926765,
+  "home": "Czech Republic",
+  "away": "South Africa",
+  "kickoffTs": 1781798400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1781806237399,
+   "seq": 974
+  }
+ },
+ {
+  "fixtureId": 17926603,
+  "home": "Switzerland",
+  "away": "Bosnia & Herzegovina",
+  "kickoffTs": 1781809200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 4,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1781816445953,
+   "seq": 1062
+  }
+ },
+ {
+  "fixtureId": 17588238,
+  "home": "Canada",
+  "away": "Qatar",
+  "kickoffTs": 1781820000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 6,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1781828070454,
+   "seq": 1165
+  }
+ },
+ {
+  "fixtureId": 17588223,
+  "home": "Mexico",
+  "away": "South Korea",
+  "kickoffTs": 1781830800,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1781838123994,
+   "seq": 1025
+  }
+ },
+ {
+  "fixtureId": 17588388,
+  "home": "USA",
+  "away": "Australia",
+  "kickoffTs": 1781895600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1781903364692,
+   "seq": 1034
+  }
+ },
+ {
+  "fixtureId": 17588397,
+  "home": "Scotland",
+  "away": "Morocco",
+  "kickoffTs": 1781906400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1781914653381,
+   "seq": 884
+  }
+ },
+ {
+  "fixtureId": 17588317,
+  "home": "Brazil",
+  "away": "Haiti",
+  "kickoffTs": 1781915400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1781923283342,
+   "seq": 1046
+  }
+ },
+ {
+  "fixtureId": 17926688,
+  "home": "Turkey",
+  "away": "Paraguay",
+  "kickoffTs": 1781924400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1781932887705,
+   "seq": 1175
+  }
+ },
+ {
+  "fixtureId": 17926687,
+  "home": "Netherlands",
+  "away": "Sweden",
+  "kickoffTs": 1781974800,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 5,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1781983622605,
+   "seq": 904
+  }
+ },
+ {
+  "fixtureId": 17588240,
+  "home": "Germany",
+  "away": "Ivory Coast",
+  "kickoffTs": 1781985600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1781993005299,
+   "seq": 1072
+  }
+ },
+ {
+  "fixtureId": 17588320,
+  "home": "Ecuador",
+  "away": "Curacao",
+  "kickoffTs": 1782000000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782007691836,
+   "seq": 1114
+  }
+ },
+ {
+  "fixtureId": 17588310,
+  "home": "Tunisia",
+  "away": "Japan",
+  "kickoffTs": 1782014400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 4,
+   "gameState": "scheduled",
+   "asOf": 1782021503755,
+   "seq": 1030
+  }
+ },
+ {
+  "fixtureId": 17588232,
+  "home": "Spain",
+  "away": "Saudi Arabia",
+  "kickoffTs": 1782057600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 4,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782065265682,
+   "seq": 967
+  }
+ },
+ {
+  "fixtureId": 17588390,
+  "home": "Belgium",
+  "away": "Iran",
+  "kickoffTs": 1782068400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782076084214,
+   "seq": 1167
+  }
+ },
+ {
+  "fixtureId": 17588235,
+  "home": "Uruguay",
+  "away": "Cape Verde",
+  "kickoffTs": 1782079200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1782086870423,
+   "seq": 1005
+  }
+ },
+ {
+  "fixtureId": 17588242,
+  "home": "New Zealand",
+  "away": "Egypt",
+  "kickoffTs": 1782090000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 3,
+   "gameState": "scheduled",
+   "asOf": 1782097681942,
+   "seq": 1022
+  }
+ },
+ {
+  "fixtureId": 17588389,
+  "home": "Argentina",
+  "away": "Austria",
+  "kickoffTs": 1782147600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782159636951,
+   "seq": 906
+  }
+ },
+ {
+  "fixtureId": 17926647,
+  "home": "France",
+  "away": "Iraq",
+  "kickoffTs": 1782162000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782176003099,
+   "seq": 1036
+  }
+ },
+ {
+  "fixtureId": 17588313,
+  "home": "Norway",
+  "away": "Senegal",
+  "kickoffTs": 1782172800,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1782180869039,
+   "seq": 1065
+  }
+ },
+ {
+  "fixtureId": 17588244,
+  "home": "Jordan",
+  "away": "Algeria",
+  "kickoffTs": 1782183600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1782191097406,
+   "seq": 1034
+  }
+ },
+ {
+  "fixtureId": 17588231,
+  "home": "Portugal",
+  "away": "Uzbekistan",
+  "kickoffTs": 1782234000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 5,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782241864960,
+   "seq": 1167
+  }
+ },
+ {
+  "fixtureId": 17588324,
+  "home": "England",
+  "away": "Ghana",
+  "kickoffTs": 1782244800,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782252577526,
+   "seq": 1020
+  }
+ },
+ {
+  "fixtureId": 17588401,
+  "home": "Panama",
+  "away": "Croatia",
+  "kickoffTs": 1782255600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782266402474,
+   "seq": 866
+  }
+ },
+ {
+  "fixtureId": 17926615,
+  "home": "Colombia",
+  "away": "Congo DR",
+  "kickoffTs": 1782266400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782273900428,
+   "seq": 953
+  }
+ },
+ {
+  "fixtureId": 17588303,
+  "home": "Switzerland",
+  "away": "Canada",
+  "kickoffTs": 1782327600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782334976614,
+   "seq": 1149
+  }
+ },
+ {
+  "fixtureId": 17926766,
+  "home": "Bosnia & Herzegovina",
+  "away": "Qatar",
+  "kickoffTs": 1782327600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782335028719,
+   "seq": 880
+  }
+ },
+ {
+  "fixtureId": 17588319,
+  "home": "Morocco",
+  "away": "Haiti",
+  "kickoffTs": 1782338400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 4,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1782346083977,
+   "seq": 1103
+  }
+ },
+ {
+  "fixtureId": 17588398,
+  "home": "Scotland",
+  "away": "Brazil",
+  "kickoffTs": 1782338460,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 3,
+   "gameState": "scheduled",
+   "asOf": 1782347310062,
+   "seq": 982
+  }
+ },
+ {
+  "fixtureId": 17588395,
+  "home": "South Africa",
+  "away": "South Korea",
+  "kickoffTs": 1782349200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782356615778,
+   "seq": 988
+  }
+ },
+ {
+  "fixtureId": 17926764,
+  "home": "Czech Republic",
+  "away": "Mexico",
+  "kickoffTs": 1782349200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 3,
+   "gameState": "scheduled",
+   "asOf": 1782356559680,
+   "seq": 969
+  }
+ },
+ {
+  "fixtureId": 17588302,
+  "home": "Ecuador",
+  "away": "Germany",
+  "kickoffTs": 1782417600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782425281205,
+   "seq": 984
+  }
+ },
+ {
+  "fixtureId": 17588321,
+  "home": "Curacao",
+  "away": "Ivory Coast",
+  "kickoffTs": 1782417600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1782424924895,
+   "seq": 1137
+  }
+ },
+ {
+  "fixtureId": 17588400,
+  "home": "Tunisia",
+  "away": "Switzerland",
+  "kickoffTs": 1782424800,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 17588236,
+  "home": "Tunisia",
+  "away": "Netherlands",
+  "kickoffTs": 1782428400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 3,
+   "gameState": "scheduled",
+   "asOf": 1782436225769,
+   "seq": 1003
+  }
+ },
+ {
+  "fixtureId": 17926686,
+  "home": "Japan",
+  "away": "Sweden",
+  "kickoffTs": 1782428400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782435821992,
+   "seq": 884
+  }
+ },
+ {
+  "fixtureId": 17588229,
+  "home": "Paraguay",
+  "away": "Australia",
+  "kickoffTs": 1782439200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782446911653,
+   "seq": 887
+  }
+ },
+ {
+  "fixtureId": 17926593,
+  "home": "Turkey",
+  "away": "USA",
+  "kickoffTs": 1782439200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1782447411180,
+   "seq": 1097
+  }
+ },
+ {
+  "fixtureId": 17588234,
+  "home": "Norway",
+  "away": "France",
+  "kickoffTs": 1782500400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 4,
+   "gameState": "scheduled",
+   "asOf": 1782508154254,
+   "seq": 1092
+  }
+ },
+ {
+  "fixtureId": 17926740,
+  "home": "Senegal",
+  "away": "Iraq",
+  "kickoffTs": 1782500400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 5,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782508067022,
+   "seq": 1169
+  }
+ },
+ {
+  "fixtureId": 17588314,
+  "home": "Cape Verde",
+  "away": "Saudi Arabia",
+  "kickoffTs": 1782518400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782526162986,
+   "seq": 1073
+  }
+ },
+ {
+  "fixtureId": 17588404,
+  "home": "Uruguay",
+  "away": "Spain",
+  "kickoffTs": 1782518400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782526258338,
+   "seq": 883
+  }
+ },
+ {
+  "fixtureId": 17588309,
+  "home": "Egypt",
+  "away": "Iran",
+  "kickoffTs": 1782529200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782537159138,
+   "seq": 1141
+  }
+ },
+ {
+  "fixtureId": 17588323,
+  "home": "New Zealand",
+  "away": "Belgium",
+  "kickoffTs": 1782529200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 5,
+   "gameState": "scheduled",
+   "asOf": 1782536731866,
+   "seq": 944
+  }
+ },
+ {
+  "fixtureId": 17588245,
+  "home": "Croatia",
+  "away": "Ghana",
+  "kickoffTs": 1782594000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782601632286,
+   "seq": 989
+  }
+ },
+ {
+  "fixtureId": 17588402,
+  "home": "Panama",
+  "away": "England",
+  "kickoffTs": 1782594000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1782601569145,
+   "seq": 1181
+  }
+ },
+ {
+  "fixtureId": 17588391,
+  "home": "Colombia",
+  "away": "Portugal",
+  "kickoffTs": 1782603060,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782610445616,
+   "seq": 1086
+  }
+ },
+ {
+  "fixtureId": 17926704,
+  "home": "Congo DR",
+  "away": "Uzbekistan",
+  "kickoffTs": 1782603060,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782610754310,
+   "seq": 1117
+  }
+ },
+ {
+  "fixtureId": 17588325,
+  "home": "Jordan",
+  "away": "Argentina",
+  "kickoffTs": 1782612000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 3,
+   "gameState": "scheduled",
+   "asOf": 1782619433179,
+   "seq": 980
+  }
+ },
+ {
+  "fixtureId": 17588326,
+  "home": "Algeria",
+  "away": "Austria",
+  "kickoffTs": 1782612000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 3,
+   "gameState": "scheduled",
+   "asOf": 1782619413637,
+   "seq": 985
+  }
+ },
+ {
+  "fixtureId": 18167317,
+  "home": "South Africa",
+  "away": "Canada",
+  "kickoffTs": 1782673200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782681594340,
+   "seq": 962
+  }
+ },
+ {
+  "fixtureId": 18172469,
+  "home": "Brazil",
+  "away": "Japan",
+  "kickoffTs": 1782752400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782760053440,
+   "seq": 988
+  }
+ },
+ {
+  "fixtureId": 18175983,
+  "home": "Germany",
+  "away": "Paraguay",
+  "kickoffTs": 1782765000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782776357806,
+   "seq": 1583
+  }
+ },
+ {
+  "fixtureId": 18172280,
+  "home": "Netherlands",
+  "away": "Morocco",
+  "kickoffTs": 1782781200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782791903572,
+   "seq": 1427
+  }
+ },
+ {
+  "fixtureId": 18175397,
+  "home": "Ivory Coast",
+  "away": "Norway",
+  "kickoffTs": 1782838800,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1782846983411,
+   "seq": 1060
+  }
+ },
+ {
+  "fixtureId": 18175981,
+  "home": "France",
+  "away": "Sweden",
+  "kickoffTs": 1782853200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782860224569,
+   "seq": 994
+  }
+ },
+ {
+  "fixtureId": 18179759,
+  "home": "Mexico",
+  "away": "Ecuador",
+  "kickoffTs": 1782871200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782879170255,
+   "seq": 885
+  }
+ },
+ {
+  "fixtureId": 18179764,
+  "home": "England",
+  "away": "Congo DR",
+  "kickoffTs": 1782921600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1782929351624,
+   "seq": 1165
+  }
+ },
+ {
+  "fixtureId": 18179550,
+  "home": "Belgium",
+  "away": "Senegal",
+  "kickoffTs": 1782936000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1782950054442,
+   "seq": 1316
+  }
+ },
+ {
+  "fixtureId": 18172379,
+  "home": "USA",
+  "away": "Bosnia & Herzegovina",
+  "kickoffTs": 1782950400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1782958444741,
+   "seq": 1058
+  }
+ },
+ {
+  "fixtureId": 18179551,
+  "home": "Spain",
+  "away": "Austria",
+  "kickoffTs": 1783018800,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1783026117125,
+   "seq": 1042
+  }
+ },
+ {
+  "fixtureId": 18179763,
+  "home": "Portugal",
+  "away": "Croatia",
+  "kickoffTs": 1783033200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1783041221434,
+   "seq": 1074
+  }
+ },
+ {
+  "fixtureId": 18179552,
+  "home": "Switzerland",
+  "away": "Algeria",
+  "kickoffTs": 1783047600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1783054811101,
+   "seq": 1071
+  }
+ },
+ {
+  "fixtureId": 18176123,
+  "home": "Australia",
+  "away": "Egypt",
+  "kickoffTs": 1783101600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1783112278263,
+   "seq": 1353
+  }
+ },
+ {
+  "fixtureId": 18175918,
+  "home": "Argentina",
+  "away": "Cape Verde",
+  "kickoffTs": 1783116000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1783126189288,
+   "seq": 1242
+  }
+ },
+ {
+  "fixtureId": 18179549,
+  "home": "Colombia",
+  "away": "Ghana",
+  "kickoffTs": 1783128600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1783136390756,
+   "seq": 1038
+  }
+ },
+ {
+  "fixtureId": 18185036,
+  "home": "Canada",
+  "away": "Morocco",
+  "kickoffTs": 1783184400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 3,
+   "gameState": "scheduled",
+   "asOf": 1783193464216,
+   "seq": 1122
+  }
+ },
+ {
+  "fixtureId": 18188721,
+  "home": "Paraguay",
+  "away": "France",
+  "kickoffTs": 1783198980,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1783207388027,
+   "seq": 965
+  }
+ },
+ {
+  "fixtureId": 18187298,
+  "home": "Brazil",
+  "away": "Norway",
+  "kickoffTs": 1783281600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1783289555398,
+   "seq": 1101
+  }
+ },
+ {
+  "fixtureId": 18192996,
+  "home": "Mexico",
+  "away": "England",
+  "kickoffTs": 1783299600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 3,
+   "gameState": "scheduled",
+   "asOf": 1783308461073,
+   "seq": 1047
+  }
+ },
+ {
+  "fixtureId": 18198205,
+  "home": "Portugal",
+  "away": "Spain",
+  "kickoffTs": 1783364400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1783372324158,
+   "seq": 993
+  }
+ },
+ {
+  "fixtureId": 18193785,
+  "home": "USA",
+  "away": "Belgium",
+  "kickoffTs": 1783382400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 4,
+   "gameState": "scheduled",
+   "asOf": 1783389908619,
+   "seq": 1124
+  }
+ },
+ {
+  "fixtureId": 18202701,
+  "home": "Argentina",
+  "away": "Egypt",
+  "kickoffTs": 1783440000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 2,
+   "gameState": "finished",
+   "asOf": 1783455310988,
+   "seq": 1046
+  }
+ },
+ {
+  "fixtureId": 18202783,
+  "home": "Switzerland",
+  "away": "Colombia",
+  "kickoffTs": 1783454400,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1783465109931,
+   "seq": 1354
+  }
+ },
+ {
+  "fixtureId": 18209181,
+  "home": "France",
+  "away": "Morocco",
+  "kickoffTs": 1783627200,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 0,
+   "gameState": "scheduled",
+   "asOf": 1783635207535,
+   "seq": 1115
+  }
+ },
+ {
+  "fixtureId": 18218149,
+  "home": "Spain",
+  "away": "Belgium",
+  "kickoffTs": 1783710000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 2,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1783717758874,
+   "seq": 1088
+  }
+ },
+ {
+  "fixtureId": 18213979,
+  "home": "Norway",
+  "away": "England",
+  "kickoffTs": 1783803600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1783813940264,
+   "seq": 1184
+  }
+ },
+ {
+  "fixtureId": 18222446,
+  "home": "Argentina",
+  "away": "Switzerland",
+  "kickoffTs": 1783818000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 3,
+   "away": 1,
+   "gameState": "scheduled",
+   "asOf": 1783828222499,
+   "seq": 1306
+  }
+ },
+ {
+  "fixtureId": 18237038,
+  "home": "France",
+  "away": "Spain",
+  "kickoffTs": 1784055600,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 2,
+   "gameState": "scheduled",
+   "asOf": 1784063054751,
+   "seq": 1026
+  }
+ },
+ {
+  "fixtureId": 18241006,
+  "home": "England",
+  "away": "Argentina",
+  "kickoffTs": 1784142000,
+  "competition": "World Cup"
+ }
+]

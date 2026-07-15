@@ -7,7 +7,6 @@
 import { useMemo } from "react";
 import type { Bet, Fixture, Position } from "@/lib/api";
 import { betTitle, matchup, money, positionSummary, proofBadge, pusdc, sideLabels } from "@/lib/format";
-import { Sheet } from "./ui";
 
 const TONE: Record<string, string> = {
   good: "text-good",
@@ -16,19 +15,21 @@ const TONE: Record<string, string> = {
   neutral: "text-ink-2",
 };
 
-export function MyBets({
-  open,
-  onClose,
+/** The user's positions with outcomes and one-tap claim — rendered inline as
+ *  the "My Bets" tab. */
+export function MyBetsPanel({
   bets,
   positions,
   fixtures,
+  agentBets,
+  claimableOnly = false,
   onOpenBet,
 }: {
-  open: boolean;
-  onClose: () => void;
   bets: Bet[];
   positions: Position[];
   fixtures: Fixture[];
+  agentBets?: Set<string>; // bet addresses the 12th Man agent placed for me
+  claimableOnly?: boolean; // Claim tab: show only positions ready to collect
   onOpenBet: (address: string) => void;
 }) {
   const betByAddress = useMemo(() => new Map(bets.map((b) => [b.address, b])), [bets]);
@@ -39,13 +40,14 @@ export function MyBets({
         const bet = betByAddress.get(pos.bet);
         return bet ? { bet, pos, summary: positionSummary(bet, pos) } : null;
       })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
+      .filter((x): x is NonNullable<typeof x> => x !== null)
+      .filter((x) => (claimableOnly ? x.summary.claimable : true));
     // claimable first, then live/pending, then decided
     const rank: Record<string, number> = {
       won: 0, refundable: 0, awaiting: 1, "in-play": 1, open: 2, claimed: 3, lost: 4,
     };
     return items.sort((a, b) => rank[a.summary.outcome] - rank[b.summary.outcome]);
-  }, [positions, betByAddress]);
+  }, [positions, betByAddress, claimableOnly]);
 
   const staked = rows.reduce((s, r) => s + pusdc(r.pos.amount), 0);
   const claimable = rows.reduce((s, r) => s + r.summary.payout, 0);
@@ -55,10 +57,12 @@ export function MyBets({
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="My bets">
+    <div>
       {rows.length === 0 ? (
         <p className="py-8 text-center text-sm text-ink-3">
-          No bets yet — pick a match and take a side.
+          {claimableOnly
+            ? "Nothing to claim right now — winnings show up here the moment a bet settles in your favour."
+            : "No bets yet — pick a match and take a side."}
         </p>
       ) : (
         <div className="space-y-3">
@@ -85,14 +89,21 @@ export function MyBets({
               return (
                 <button
                   key={pos.address}
-                  onClick={() => {
-                    onClose();
-                    onOpenBet(bet.address);
-                  }}
+                  onClick={() => onOpenBet(bet.address)}
                   className="flex w-full items-center justify-between gap-3 rounded-xl border border-hairline bg-surface p-3 text-left transition hover:border-white/20"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-ink">{betTitle(bet, fixtures)}</p>
+                    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-ink">
+                      {agentBets?.has(bet.address) && (
+                        <span
+                          title="Placed by your 12th Man agent"
+                          className="shrink-0 rounded-full border border-over/40 bg-over/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-over"
+                        >
+                          🛡️ 12th Man
+                        </span>
+                      )}
+                      <span className="truncate">{betTitle(bet, fixtures)}</span>
+                    </p>
                     <p className="tnum mt-0.5 truncate font-mono text-xs text-ink-3">
                       {matchup(bet, fixtures)} · {money(pusdc(pos.amount))} on{" "}
                       <span className={pos.side === "over" ? "text-over" : "text-under"}>
@@ -124,6 +135,6 @@ export function MyBets({
           </div>
         </div>
       )}
-    </Sheet>
+    </div>
   );
 }

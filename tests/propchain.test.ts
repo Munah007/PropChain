@@ -7,7 +7,6 @@ import { readFileSync } from "node:fs";
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
-  createMint,
   createAssociatedTokenAccount,
   mintTo,
   getAccount,
@@ -25,7 +24,15 @@ const program = new anchor.Program(idl, provider);
 const USDC_DECIMALS = 6;
 const usdc = (n: number) => new BN(n * 10 ** USDC_DECIMALS);
 
-let usdcMint: PublicKey;
+// The allowlisted pUSDC mint — loaded into the test validator from
+// tests/fixtures/pusdc-mint.json (see Anchor.toml), with the committed
+// test-only keypair below as its mint authority.
+const usdcMint = new PublicKey("DWF9ARTjTq3S2jMabyimsaXiVqGVHnVdp1XoRAh3s6Q8");
+const mintAuthority = Keypair.fromSecretKey(
+  Uint8Array.from(
+    JSON.parse(readFileSync(new URL("./fixtures/pusdc-mint-authority.json", import.meta.url), "utf8"))
+  )
+);
 const alice = Keypair.generate(); // creator, stakes Over
 const bob = Keypair.generate(); // stakes Under
 let aliceToken: PublicKey;
@@ -102,11 +109,10 @@ before(async () => {
     const sig = await provider.connection.requestAirdrop(kp.publicKey, 5 * LAMPORTS_PER_SOL);
     await provider.connection.confirmTransaction(sig);
   }
-  usdcMint = await createMint(provider.connection, payer, payer.publicKey, null, USDC_DECIMALS);
   aliceToken = await createAssociatedTokenAccount(provider.connection, payer, usdcMint, alice.publicKey);
   bobToken = await createAssociatedTokenAccount(provider.connection, payer, usdcMint, bob.publicKey);
-  await mintTo(provider.connection, payer, usdcMint, aliceToken, payer, 1_000n * 10n ** 6n);
-  await mintTo(provider.connection, payer, usdcMint, bobToken, payer, 1_000n * 10n ** 6n);
+  await mintTo(provider.connection, payer, usdcMint, aliceToken, mintAuthority, 1_000n * 10n ** 6n);
+  await mintTo(provider.connection, payer, usdcMint, bobToken, mintAuthority, 1_000n * 10n ** 6n);
 });
 
 test("create_bet initialises config and empty pool", async () => {

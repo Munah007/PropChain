@@ -1,5 +1,8 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { BetsService } from "./bets.service";
+import { CreateBetDto, StakeDto } from "./bets.dto";
+import { SessionAuthGuard } from "../auth/session-auth.guard";
+import { parsePublicKey } from "../common/validation";
 
 @Controller("bets")
 export class BetsController {
@@ -10,18 +13,24 @@ export class BetsController {
     return this.bets.list();
   }
 
+  // Mutations require auth — SessionAuthGuard sets req.userKey from the
+  // verified token; the legacy body userKey is never trusted for identity.
+
   @Post()
-  create(@Body() body: any) {
-    return this.bets.create(body);
+  @UseGuards(SessionAuthGuard)
+  create(@Req() req: any, @Body() body: any) {
+    return this.bets.create(req.userKey, CreateBetDto.from(body));
   }
 
   @Post(":address/stake")
-  stake(@Param("address") address: string, @Body() body: any) {
-    return this.bets.stake(address, body);
+  @UseGuards(SessionAuthGuard)
+  stake(@Param("address") address: string, @Req() req: any, @Body() body: any) {
+    return this.bets.stake(parsePublicKey(address, "bet address"), req.userKey, StakeDto.from(body));
   }
 
   @Post(":address/claim")
-  claim(@Param("address") address: string, @Body() body: any) {
-    return this.bets.claim(address, body);
+  @UseGuards(SessionAuthGuard)
+  claim(@Param("address") address: string, @Req() req: any) {
+    return this.bets.claim(parsePublicKey(address, "bet address"), req.userKey);
   }
 }

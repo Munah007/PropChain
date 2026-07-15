@@ -1,4 +1,4 @@
-import type { Bet, Fixture, Position } from "./api";
+import type { Bet, Fixture, FixtureOdds, Position } from "./api";
 
 // Market templates. TxLINE base stat keys: odd = home, even = away.
 // lineKind "half" markets show sportsbook half-lines: displayed line =
@@ -221,6 +221,41 @@ export function formatProofTime(raw: string | number): string {
     timeStyle: "short",
     timeZone: "UTC",
   }) + " UTC";
+}
+
+/**
+ * TxLINE consensus probability for this bet's OVER side, where the StablePrice
+ * feed prices the equivalent market. Only two shapes map cleanly:
+ *  - total goals (1+2, Add, Greater N) → over/under line N.5
+ *  - team to win (1-2 or 2-1, Subtract, Greater 0) → 1X2 (under side = draw
+ *    or other team, so under = 1 - P(win))
+ * Everything else (corners, cards, GG, margins) has no consensus feed on the
+ * devnet World Cup tier — we show nothing rather than invent a number.
+ */
+export function consensusForOver(bet: Bet, odds: FixtureOdds | null): number | null {
+  if (!odds?.available || bet.kind !== "line" || bet.comparison !== "greater") return null;
+  const keys = [bet.statKeyA, bet.statKeyB];
+  if (bet.op === "add" && keys[0] === 1 && keys[1] === 2 && odds.totals.length) {
+    const line = bet.threshold + 0.5;
+    return odds.totals.find((t) => Math.abs(t.line - line) < 1e-9)?.over ?? null;
+  }
+  if (bet.op === "subtract" && bet.threshold === 0 && odds.result) {
+    if (keys[0] === 1 && keys[1] === 2) return odds.result.home;
+    if (keys[0] === 2 && keys[1] === 1) return odds.result.away;
+  }
+  return null;
+}
+
+/**
+ * Pool-implied probability of the over side (its share of total stakes).
+ * Null until BOTH sides have stake — a one-sided pool "implies 100%", which
+ * is technically true and practically meaningless.
+ */
+export function poolImpliedOver(bet: Bet): number | null {
+  const over = pusdc(bet.overTotal);
+  const under = pusdc(bet.underTotal);
+  if (over <= 0 || under <= 0) return null;
+  return over / (over + under);
 }
 
 export interface ProofBadge {

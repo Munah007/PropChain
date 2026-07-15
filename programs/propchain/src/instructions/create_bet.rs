@@ -34,6 +34,7 @@ pub struct CreateBet<'info> {
     )]
     pub bet: Account<'info, BetConfig>,
 
+    #[account(address = crate::state::PUSDC_MINT @ PropChainError::InvalidMint)]
     pub usdc_mint: Account<'info, Mint>,
 
     /// Escrow vault holding both sides' collateral; authority is the bet PDA.

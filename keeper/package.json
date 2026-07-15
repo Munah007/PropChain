@@ -4,7 +4,8 @@
   "description": "PropChain keeper: watches TxLINE feeds, records them, proposes and challenges settlements",
   "type": "module",
   "scripts": {
-    "start": "node src/index.ts"
+    "start": "node src/index.ts",
+    "test": "node --test src/*.test.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

@@ -4,20 +4,37 @@ use anchor_lang::prelude::*;
 pub const VOID_TIMELOCK_SECS: i64 = 48 * 60 * 60;
 /// Challenge window for pending settlements (PRD §5.4).
 pub const CHALLENGE_WINDOW_SECS: i64 = 90 * 60;
+/// Seconds after `void_after_ts` at which the creator may sweep the vault's
+/// residual (rounding dust + any unclaimed stakes) and reclaim its rent. Long
+/// enough that a genuine winner always has ample time to claim first.
+pub const SWEEP_TIMELOCK_SECS: i64 = 7 * 24 * 60 * 60;
+
+/// The only stake mint the protocol accepts: devnet pUSDC. Hardcoded because
+/// the hackathon deployment is devnet-only and single-mint. IMPORTANT: minting
+/// a fresh pUSDC (a clean funder state) means updating this constant and
+/// redeploying — otherwise `create_bet` will reject every new bet.
+pub const PUSDC_MINT: Pubkey =
+    anchor_lang::solana_program::pubkey!("DWF9ARTjTq3S2jMabyimsaXiVqGVHnVdp1XoRAh3s6Q8");
 
 /// TxLINE soccer base stat keys: 1/2 goals, 3/4 yellows, 5/6 reds, 7/8 corners
 /// (odd = home, even = away). Phase 1 supports full-game stats only.
 pub const MAX_STAT_BASE_KEY: u16 = 8;
 
-/// The `period` field on a proven stat is a match-phase marker (observed on
-/// real feed data: 2 = 1st half, 3 = halftime, 4 = 2nd half, 5 = stoppage,
-/// 100 = game_finalised, 0 = post-final). Settlement proofs are only accepted
-/// from final phases — this is the on-chain "match is over" gate.
+/// The `period` field on a proven stat is a match-phase marker (TxLINE
+/// StatusId: 1 = not started, 2 = 1st half, 3 = halftime, 4 = 2nd half,
+/// 5 = full time, 6-13 = extra time/penalties, 100 = game_finalised,
+/// 0 = post-final; full table in keeper/src/phases.ts). Settlement proofs are
+/// only accepted from final phases — this is the on-chain "match is over"
+/// gate. {100, 0} only: plain full-time (5) is deliberately excluded so a
+/// result can never lock before the feed finalises the game.
 pub const FINAL_STAT_PERIODS: [i32; 2] = [100, 0];
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, InitSpace)]
 pub enum Comparison {
     /// Over wins iff stat value (or combination) is strictly greater than threshold.
+    /// Push rule: landing exactly on the threshold is not strictly greater, so the
+    /// exact line goes to Under — the UI renders integer threshold N as "N.5" so
+    /// no user-facing market can ever push.
     Greater,
     /// Over wins iff strictly less. ("Over" always denotes the predicate-true side.)
     Less,

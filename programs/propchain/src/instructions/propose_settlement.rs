@@ -61,7 +61,7 @@ pub fn handler(ctx: Context<ProposeSettlement>, args: ProposeSettlementArgs) -> 
         matches!(bet.status, BetStatus::Open | BetStatus::SettlementPending),
         PropChainError::BetNotOpen
     );
-    require!(now >= bet.kickoff_ts, PropChainError::StakingClosed);
+    require!(now >= bet.kickoff_ts, PropChainError::KickoffNotReached);
 
     // The proof must be about this bet's fixture…
     require!(

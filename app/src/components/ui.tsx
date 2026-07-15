@@ -151,7 +151,7 @@ export interface ToastData {
 export function Toast({ toast }: { toast: ToastData | null }) {
   if (!toast) return null;
   return (
-    <div className="fixed inset-x-0 bottom-6 z-[60] flex justify-center px-4">
+    <div className="fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4">
       <div className="toast-in flex items-center gap-3 rounded-2xl border border-good/40 bg-raised px-5 py-3.5 shadow-[0_16px_48px_rgba(0,0,0,0.5)]">
         <span className="grid size-6 place-items-center rounded-full bg-good/20 text-sm text-good" aria-hidden>
           ✓

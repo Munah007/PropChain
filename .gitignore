@@ -15,7 +15,16 @@ txline-creds.json
 funder-state.json
 
 recordings/*.jsonl
+# …except the curated demo recording the replay mode ships with (Jul 12 file
+# covers the Argentina–Switzerland semi the demo replays)
+!recordings/scores-2026-07-12.jsonl
 .DS_Store
+# server runtime state (accounts, session bearer tokens, agent config/state) —
+# never commit; these are recreated at runtime and hold secrets/PII
 server/local-wallets.json
 server/users.json
+server/sessions.json
+server/agent-config.json
+server/agent-state.json
 server/dist/
+keeper/keeper.log

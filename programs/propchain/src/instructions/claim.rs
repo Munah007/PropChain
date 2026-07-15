@@ -11,11 +11,11 @@ pub struct Claim<'info> {
     #[account(mut)]
     pub bet: Account<'info, BetConfig>,
 
+    // The PDA seeds bind this position to (bet, user); no extra owner check needed.
     #[account(
         mut,
         seeds = [UserPosition::SEED, bet.key().as_ref(), user.key().as_ref()],
-        bump = position.bump,
-        constraint = position.user == user.key() @ PropChainError::NotAWinner
+        bump = position.bump
     )]
     pub position: Account<'info, UserPosition>,
 

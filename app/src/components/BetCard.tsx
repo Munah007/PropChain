@@ -4,19 +4,49 @@
 // multiples) sit right on the card — signing in happens inside the flow,
 // only when the transaction actually needs a wallet.
 
-import type { Bet, Fixture, Position } from "@/lib/api";
-import { betTitle, kickoffLabel, matchup, money, payoutMultiple, pusdc, sideLabels } from "@/lib/format";
+import { useEffect, useRef, useState } from "react";
+import type { Bet, Fixture, FixtureOdds, Position } from "@/lib/api";
+import {
+  betTitle,
+  consensusForOver,
+  kickoffLabel,
+  matchup,
+  money,
+  payoutMultiple,
+  poolImpliedOver,
+  pusdc,
+  sideLabels,
+} from "@/lib/format";
 import { Countdown, OddsMeter, StatusPill } from "./ui";
+
+/** One-shot true for ~1.6s when the bet transitions into `settled` on a poll. */
+function useJustSettled(status: Bet["status"]): boolean {
+  const prev = useRef(status);
+  const [flash, setFlash] = useState(false);
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = status;
+    if (was !== "settled" && status === "settled") {
+      setFlash(true);
+      const t = setTimeout(() => setFlash(false), 1600);
+      return () => clearTimeout(t);
+    }
+  }, [status]);
+  return flash;
+}
 
 export function BetCard({
   bet,
   fixtures,
+  odds = null,
   position,
   onOpen,
   hideMatchup = false,
 }: {
   bet: Bet;
   fixtures: Fixture[];
+  /** TxLINE consensus odds for this bet's fixture, when the caller has them */
+  odds?: FixtureOdds | null;
   position?: Position;
   onOpen: (side?: "over" | "under") => void;
   /** true when rendered inside a MatchCard — the match header already says it */
@@ -29,9 +59,12 @@ export function BetCard({
   const overX = payoutMultiple(bet, "over");
   const underX = payoutMultiple(bet, "under");
   const settledOrPending = bet.status !== "open";
+  const justSettled = useJustSettled(bet.status);
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-hairline bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-white/20">
+    <article
+      className={`group overflow-hidden rounded-2xl border border-hairline bg-surface shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition hover:border-white/20 ${justSettled ? "settle-flash" : ""}`}
+    >
       <button onClick={() => onOpen()} className="block w-full p-4 pb-3 text-left sm:p-5 sm:pb-3">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -51,6 +84,26 @@ export function BetCard({
           <OddsMeter bet={bet} labels={labels} />
         </div>
 
+        {stakeable &&
+          (() => {
+            // The edge-finder line: TxLINE's demargined consensus vs what this
+            // pool currently implies. A gap either way is a reason to stake.
+            const consensus = consensusForOver(bet, odds);
+            if (consensus == null) return null;
+            const implied = poolImpliedOver(bet);
+            return (
+              <p className="tnum mt-2 font-mono text-xs text-ink-3">
+                TxLINE consensus:{" "}
+                <span className="font-semibold text-ink-2">
+                  {Math.round(consensus * 100)}% “{labels.over}”
+                </span>
+                {implied != null && (
+                  <> · pool implies {Math.round(implied * 100)}%</>
+                )}
+              </p>
+            );
+          })()}
+
         <p className="tnum mt-3 font-mono text-xs text-ink-3">
           {stakeable ? (
             <>
@@ -60,7 +113,12 @@ export function BetCard({
           ) : bet.status === "settlementPending" && bet.pending ? (
             <>
               Proof verified — <span className={bet.pending.result ? "text-over" : "text-under"}>{bet.pending.result ? labels.over : labels.under}</span>{" "}
-              pending · locks in <Countdown ts={bet.pending.challengeDeadlineTs} />
+              pending ·{" "}
+              {bet.pending.challengeDeadlineTs > Math.floor(Date.now() / 1000) ? (
+                <>locks in <Countdown ts={bet.pending.challengeDeadlineTs} /></>
+              ) : (
+                "finalizing…"
+              )}
             </>
           ) : bet.status === "settled" ? (
             <>

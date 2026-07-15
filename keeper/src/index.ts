@@ -38,24 +38,34 @@ function loadOrCreateKeypair(path: string): Keypair {
   return kp;
 }
 
+const RECONNECT_BASE_MS = 5_000;
+const RECONNECT_CAP_MS = 30_000;
+
 async function recordStream(txline: TxLineClient) {
   let events = 0;
+  // Exponential backoff between reconnects, capped at 30s; a productive
+  // connection (at least one frame, heartbeats count) resets it.
+  let backoffMs = RECONNECT_BASE_MS;
   while (true) {
+    let productive = false;
     try {
       console.log("[keeper] opening scores stream…");
       for await (const message of txline.scoresStream()) {
+        productive = true;
         events++;
         const record = { recordedAt: Date.now(), event: message.event, data: message.data };
         const day = new Date().toISOString().slice(0, 10);
         appendFileSync(join(RECORDINGS_DIR, `scores-${day}.jsonl`), JSON.stringify(record) + "\n");
         if (events % 50 === 0) console.log(`[keeper] ${events} events recorded`);
       }
-      console.log("[keeper] stream ended, reconnecting in 5s");
+      if (productive) backoffMs = RECONNECT_BASE_MS;
+      console.log(`[keeper] stream ended, reconnecting in ${backoffMs / 1000}s`);
     } catch (err) {
-      console.error(`[keeper] stream error: ${(err as Error).message} — reconnecting in 15s`);
-      await new Promise((r) => setTimeout(r, 10_000));
+      if (productive) backoffMs = RECONNECT_BASE_MS;
+      console.error(`[keeper] stream error: ${(err as Error).message} — reconnecting in ${backoffMs / 1000}s`);
     }
-    await new Promise((r) => setTimeout(r, 5_000));
+    await new Promise((r) => setTimeout(r, backoffMs));
+    if (!productive) backoffMs = Math.min(backoffMs * 2, RECONNECT_CAP_MS);
   }
 }
 

@@ -32,6 +32,8 @@ pub fn handler(ctx: Context<FinalizeSettlement>) -> Result<()> {
         bet.result = Some(pending.result);
         bet.status = BetStatus::Settled;
     }
+    // `bet.pending` is deliberately retained: its proof_ts is the on-chain
+    // record of which proof decided the bet, surfaced by the proof viewer.
 
     emit!(SettlementFinalized {
         bet: bet.key(),

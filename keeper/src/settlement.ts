@@ -9,6 +9,12 @@
 //   Pending + window lapsed            → finalize_settlement
 //   Pending + still in window          → challenge iff a strictly-later proof
 //                                        yields a DIFFERENT verdict
+//
+// Phase routing (phases.ts) vetoes the propose/challenge path: an abandoned/
+// postponed/cancelled fixture must NEVER be settled — even off a stale
+// final-looking snapshot — and unknown phase codes hold conservatively.
+// Voiding stays timelock-driven (the program cannot void early); routing only
+// fixes the logging and prevents false settlement in the meantime.
 
 import * as anchorNs from "@coral-xyz/anchor";
 import { ComputeBudgetProgram, Connection, Keypair, PublicKey } from "@solana/web3.js";
@@ -19,6 +25,7 @@ import {
   dailyScoresRootsPda,
   type TxLineNetwork,
 } from "@propchain/txline";
+import { routePhase } from "./phases.ts";
 
 const anchor = (anchorNs as any).default ?? anchorNs;
 
@@ -107,6 +114,29 @@ export class SettlementEngine {
       return this.note(key, `no scores data for fixture ${fixtureId} yet`);
     }
     const latest = events.reduce((a: any, b: any) => ((b.Seq ?? -1) > (a.Seq ?? -1) ? b : a));
+
+    // Phase routing gate. StatusId only rides on some events, so take the
+    // latest event that carries one; GameState rides on all of them.
+    let statusEvent: any = null;
+    for (const e of events) {
+      if (e?.StatusId == null) continue;
+      if (statusEvent == null || (e.Seq ?? -1) > (statusEvent.Seq ?? -1)) statusEvent = e;
+    }
+    const routing = routePhase({ statusId: statusEvent?.StatusId, gameState: latest?.GameState });
+    if (routing.action === "abandoned") {
+      // Never propose (or challenge) on a dead fixture — a stale snapshot can
+      // still carry a final-looking period. The void itself stays with the
+      // timelock branch in processBet; here we just say when it will land.
+      if (pending) {
+        return this.note(key, `fixture ${fixtureId} ${routing.reason} — settlement pending, will not challenge`);
+      }
+      const voidAt = new Date(bet.voidAfterTs.toNumber() * 1000).toISOString();
+      return this.note(key, `fixture ${fixtureId} ${routing.reason} — bet will void at ${voidAt}`);
+    }
+    if (routing.action === "unknown" && statusEvent != null) {
+      // A code we have never seen: hold rather than risk a false settlement.
+      return this.note(key, `fixture ${fixtureId} phase unknown (${routing.reason}) — holding`);
+    }
 
     const validation = await this.txline.statValidation(
       fixtureId,

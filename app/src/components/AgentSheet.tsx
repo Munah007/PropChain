@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type AgentConfig, type AgentInfo } from "@/lib/api";
 import { flag } from "@/lib/flags";
-import { searchTeams, TEAM_GROUP } from "@/lib/teams";
+import { searchTeams } from "@/lib/teams";
 import { Sheet, Button } from "./ui";
 
 const DEFAULTS: AgentConfig = {

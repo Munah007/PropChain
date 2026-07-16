@@ -1,0 +1,14 @@
+# Keep the Docker build context lean and correct. node_modules must be excluded
+# so the image installs fresh (a copied host node_modules would shadow the
+# workspace links and defeat the whole point).
+node_modules
+**/node_modules
+.git
+app/.next
+server/dist
+target
+.anchor
+test-ledger
+recordings
+*.log
+.DS_Store

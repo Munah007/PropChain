@@ -41,10 +41,22 @@ public program`), so the keeper deploys as a service of its own.
 for `/idls/txoracle.json` and fail. It's also an npm workspace that depends on
 `@propchain/txline`, which only resolves from the root `package.json`.
 
+**Build it with the Dockerfile, NOT Railpack.** The keeper is the only service
+that depends on a *sibling* workspace (`@propchain/txline` at `packages/txline`).
+Railpack's monorepo builder does not pull sibling workspaces into a service's
+install layer, so `npm install` there sees `@propchain/txline` as external and
+fails with `404 … @propchain/txline is not in this registry`. `keeper/Dockerfile`
+copies the whole repo and installs at the root, so the workspace link resolves —
+verified with a local `docker build`. In the keeper service Settings, set the
+builder to Dockerfile with path `keeper/Dockerfile` (root directory stays the
+repo root). The `server` service is unaffected — it has no sibling-workspace dep,
+so it keeps using Railpack.
+
 | | |
 |---|---|
 | Root directory | repo root |
-| Start command | `npm run keeper` |
+| Builder | Dockerfile — `keeper/Dockerfile` |
+| Start command | `npm run keeper` (the Dockerfile `CMD`; leave the service's start command empty) |
 
 ### ⚠️ The one that bites here: it invents its own wallet
 

@@ -23,7 +23,7 @@ export function DemoBanner({
       const demo = await api.demoLaunch();
       onLaunched(
         String(demo.fixtureId),
-        `Replay armed: ${demo.home} vs ${demo.away} — kickoff in ~2 min, proof settles it live`
+        `Replay armed: ${demo.home} vs ${demo.away} — kickoff in ~2 min, proof lands ~3 min later`
       );
     } catch (e) {
       setError((e as Error).message);
@@ -37,8 +37,9 @@ export function DemoBanner({
       <div className="min-w-0">
         <p className="text-sm font-bold text-ink">No match on right now?</p>
         <p className="mt-0.5 text-xs leading-relaxed text-ink-3">
-          Replay a real World Cup match and watch a TxLINE Merkle proof settle a real
-          on-chain market — live, in about two minutes.
+          Replay a real World Cup match and watch a TxLINE Merkle proof verify on-chain
+          against a real market — about five minutes, kickoff to proof. The bet locks in
+          once the challenge window closes.
         </p>
         {error && <p className="mt-1 text-xs text-critical">{error}</p>}
       </div>

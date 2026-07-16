@@ -38,10 +38,21 @@ export const STATUS_META: Record<Bet["status"], { label: string; dot: string }> 
   voided: { label: "Voided", dot: "bg-serious" },
 };
 
-export function StatusPill({ status, live }: { status: Bet["status"]; live?: boolean }) {
+export function StatusPill({
+  status,
+  live,
+  awaitingProof,
+}: {
+  status: Bet["status"];
+  live?: boolean;
+  /** Open, but the match is over — the keeper hasn't proposed a proof yet. */
+  awaitingProof?: boolean;
+}) {
   const meta = live
     ? { label: "Live", dot: "bg-critical live-dot" }
-    : STATUS_META[status];
+    : awaitingProof
+      ? { label: "Awaiting proof", dot: "bg-warning" }
+      : STATUS_META[status];
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-raised px-2.5 py-0.5 text-xs font-semibold text-ink-2">
       <span className={`size-1.5 rounded-full ${meta.dot}`} aria-hidden />
@@ -139,6 +150,122 @@ export function Sheet({
         {children}
       </div>
     </div>
+  );
+}
+
+export interface PickerOption {
+  value: string;
+  label: string;
+  group?: string; // consecutive options sharing a group render under one heading
+}
+
+/**
+ * An in-app replacement for `<select>`.
+ *
+ * A native select hands rendering to the OS, so on Android the market list
+ * arrives as a system radio dialog — full-bleed, its own type and colours,
+ * nothing to do with the board it was opened from. This keeps the picker inside
+ * the app's own surface. Sits at z-[70]: above Sheet (z-50), which is always
+ * what opens it, and above the toast (z-[60]).
+ */
+export function Picker({
+  id,
+  value,
+  options,
+  onChange,
+  title,
+  className,
+}: {
+  id?: string;
+  value: string;
+  options: PickerOption[];
+  onChange: (value: string) => void;
+  title: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        id={id}
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`flex w-full items-center justify-between gap-2 rounded-lg border border-hairline bg-raised px-3 py-2.5 text-left text-sm text-ink outline-none transition hover:border-white/20 focus:border-over ${className ?? ""}`}
+      >
+        <span className="truncate">{selected?.label ?? "Select…"}</span>
+        <span className="shrink-0 text-xs text-ink-3" aria-hidden>
+          ▾
+        </span>
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-t-2xl border border-hairline bg-surface sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-hairline px-5 py-3.5">
+              <h3 className="text-sm font-semibold text-ink">{title}</h3>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-md px-2 py-1 text-sm text-ink-3 hover:bg-raised hover:text-ink"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="overflow-y-auto overscroll-contain py-1" role="listbox" aria-label={title}>
+              {options.map((o, i) => {
+                const isSelected = o.value === value;
+                const startsGroup = o.group && o.group !== options[i - 1]?.group;
+                return (
+                  <div key={o.value}>
+                    {startsGroup && (
+                      <p className="sticky top-0 bg-surface px-5 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-wide text-ink-3">
+                        {o.group}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => {
+                        onChange(o.value);
+                        setOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between gap-3 px-5 py-3 text-left text-sm transition ${
+                        isSelected ? "bg-raised font-semibold text-ink" : "text-ink-2 hover:bg-raised/60 hover:text-ink"
+                      }`}
+                    >
+                      <span className="truncate">{o.label}</span>
+                      {isSelected && (
+                        <span className="shrink-0 text-xs text-ink" aria-hidden>
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

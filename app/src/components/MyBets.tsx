@@ -6,6 +6,7 @@
 
 import { useMemo } from "react";
 import type { Bet, Fixture, Position } from "@/lib/api";
+import { useNow } from "@/lib/hooks";
 import { betTitle, matchup, money, positionSummary, proofBadge, pusdc, sideLabels } from "@/lib/format";
 
 const TONE: Record<string, string> = {
@@ -32,13 +33,14 @@ export function MyBetsPanel({
   claimableOnly?: boolean; // Claim tab: show only positions ready to collect
   onOpenBet: (address: string) => void;
 }) {
+  const now = useNow();
   const betByAddress = useMemo(() => new Map(bets.map((b) => [b.address, b])), [bets]);
 
   const rows = useMemo(() => {
     const items = positions
       .map((pos) => {
         const bet = betByAddress.get(pos.bet);
-        return bet ? { bet, pos, summary: positionSummary(bet, pos) } : null;
+        return bet ? { bet, pos, summary: positionSummary(bet, pos, fixtures, now) } : null;
       })
       .filter((x): x is NonNullable<typeof x> => x !== null)
       .filter((x) => (claimableOnly ? x.summary.claimable : true));
@@ -47,7 +49,7 @@ export function MyBetsPanel({
       won: 0, refundable: 0, awaiting: 1, "in-play": 1, open: 2, claimed: 3, lost: 4,
     };
     return items.sort((a, b) => rank[a.summary.outcome] - rank[b.summary.outcome]);
-  }, [positions, betByAddress, claimableOnly]);
+  }, [positions, betByAddress, claimableOnly, fixtures, now]);
 
   const staked = rows.reduce((s, r) => s + pusdc(r.pos.amount), 0);
   const claimable = rows.reduce((s, r) => s + r.summary.payout, 0);
@@ -68,7 +70,7 @@ export function MyBetsPanel({
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
             {[
-              ["Staked", `${money(staked)}`, "pUSDC"],
+              ["Bet", `${money(staked)}`, "pUSDC"],
               ["Record", `${record.won}W · ${record.lost}L`, "settled"],
               ["To claim", `${money(claimable)}`, "pUSDC"],
             ].map(([label, value, sub]) => (

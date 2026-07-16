@@ -11,12 +11,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { isMatchOver } from "./phases";
 
 const WORLD_CUP_COMPETITION_ID = 72;
 // Wide lookback so a single fetch backfills the whole tournament into the
 // archive (TxLINE serves ~the full schedule; filtering happens client-side).
 const LOOKBACK_DAYS = Number(process.env.FIXTURES_LOOKBACK_DAYS ?? 30);
 
+/** Schedule identity of a match — the shape that persists in the archive. */
 export interface Fixture {
   fixtureId: number;
   home: string;
@@ -25,20 +27,32 @@ export interface Fixture {
   competition: string;
 }
 
+/** A fixture stamped with its latest known phase — what list() serves. */
+export interface FixtureWithStatus extends Fixture {
+  statusId: number | null; // latest TxLINE StatusId seen, null if never scored
+  finished: boolean; // isMatchOver(statusId) — the board's LIVE/finished signal
+}
+
 export interface LiveScore {
   fixtureId: number;
   hasScore: boolean;
   home: number; // home (Participant1) goals
   away: number; // away (Participant2) goals
   minute: number | null; // clock minute when the match clock is running
-  gameState: string | null; // raw TxLINE game state (unreliable on the dev replay feed)
+  statusId: number | null; // TxLINE StatusId — the real phase signal (see phases.ts)
+  finished: boolean; // derived from statusId, never stored
+  gameState: string | null; // raw TxLINE game state — observed as a constant
+  // "scheduled" on every recorded event, so it says nothing about liveness.
+  // Kept for debugging only; statusId is the field to trust.
   asOf: number; // ms epoch of the latest score event
   seq: number; // TxLINE sequence — advances as the feed replays
   archived?: boolean; // true when served from the archive, not the live feed
 }
 
 interface ArchiveEntry extends Fixture {
-  lastScore?: Omit<LiveScore, "fixtureId" | "hasScore" | "minute" | "archived">;
+  // `finished` is derived from statusId on read, so it is never persisted —
+  // archives written before statusId existed simply read back as null/false.
+  lastScore?: Omit<LiveScore, "fixtureId" | "hasScore" | "minute" | "archived" | "finished">;
 }
 
 /** One pre-scheduled score frame of an active demo replay (see demo/). */
@@ -48,6 +62,7 @@ export interface ReplayFrame {
   home: number;
   away: number;
   minute: number | null;
+  statusId: number | null; // phase as recorded — flips the card at the replayed whistle
   gameState: string | null;
 }
 
@@ -129,10 +144,17 @@ export class FixturesService {
     if (!entry) return; // only archive scores for known fixtures
     // Keep the freshest event only — the last one archived before the feed
     // goes quiet is the final scoreline.
-    if (entry.lastScore && entry.lastScore.seq >= score.seq) return;
+    const prev = entry.lastScore;
+    if (prev && prev.seq > score.seq) return;
+    // Same seq normally means nothing new to store, with one exception: an
+    // archive written before phases were tracked holds a null statusId, and a
+    // finalised match will never emit a higher seq to carry one. Without this
+    // backfill those fixtures would read finished:false for good.
+    if (prev && prev.seq === score.seq && !(prev.statusId == null && score.statusId != null)) return;
     entry.lastScore = {
       home: score.home,
       away: score.away,
+      statusId: score.statusId,
       gameState: score.gameState,
       asOf: score.asOf,
       seq: score.seq,
@@ -180,7 +202,8 @@ export class FixturesService {
     // Before the shifted kickoff the fixture looks like any upcoming match.
     if (!current) {
       return {
-        fixtureId, hasScore: false, home: 0, away: 0, minute: null, gameState: null, asOf: 0, seq: -1,
+        fixtureId, hasScore: false, home: 0, away: 0, minute: null,
+        statusId: null, finished: false, gameState: null, asOf: 0, seq: -1,
       };
     }
     return {
@@ -189,6 +212,8 @@ export class FixturesService {
       home: current.home,
       away: current.away,
       minute: current.minute,
+      statusId: current.statusId,
+      finished: isMatchOver(current.statusId),
       gameState: current.gameState,
       // asOf tracks the replay clock, not the original event time, so the
       // board reads the update as live rather than days old.
@@ -197,12 +222,39 @@ export class FixturesService {
     };
   }
 
-  /** While a replay is active, show its fixture with the shifted kickoff. */
-  private withReplayKickoff(fixtures: Fixture[]): Fixture[] {
+  /**
+   * Stamp each fixture with its latest known phase from the archive. Applied on
+   * the way out of list() rather than before the 60s fixtures cache, so the
+   * board's LIVE/finished flip tracks the 10s score cache instead of lagging a
+   * whole minute behind the final whistle.
+   */
+  private withStatus(fixtures: Fixture[]): FixtureWithStatus[] {
+    const archive = this.loadArchive();
+    return fixtures.map((f) => {
+      const statusId = archive.get(f.fixtureId)?.lastScore?.statusId ?? null;
+      return { ...f, statusId, finished: isMatchOver(statusId) };
+    });
+  }
+
+  /**
+   * While a replay is active, show its fixture with the shifted kickoff — and
+   * with the phase of the frame currently playing, NOT the archived one. The
+   * demo replays a match that really finished, so the archive would otherwise
+   * stamp it finished before the replay has kicked off.
+   */
+  private withReplayKickoff(fixtures: FixtureWithStatus[]): FixtureWithStatus[] {
     const replay = this.activeReplay();
     if (!replay) return fixtures;
+    const live = this.replayScore(replay.fixtureId);
     return fixtures.map((f) =>
-      f.fixtureId === replay.fixtureId ? { ...f, kickoffTs: replay.kickoffTs } : f
+      f.fixtureId === replay.fixtureId
+        ? {
+            ...f,
+            kickoffTs: replay.kickoffTs,
+            statusId: live?.statusId ?? null,
+            finished: live?.finished ?? false,
+          }
+        : f
     );
   }
 
@@ -251,12 +303,20 @@ export class FixturesService {
         return goals;
       };
       const clockSeconds = latest?.Clock?.Running ? latest?.Clock?.Seconds : null;
+      // Phase folds forward like goals do: only ~4 in 5 events carry a
+      // StatusId, and the newest event is routinely a stat update that omits
+      // it — reading `latest.StatusId` reports null for a finalised match.
+      // Last event that states a phase wins, so a later amend still overrides.
+      let statusId: number | null = null;
+      for (const e of ordered) if (typeof e?.StatusId === "number") statusId = e.StatusId;
       const score: LiveScore = {
         fixtureId,
         hasScore: true,
         home: goalsOf("Participant1"),
         away: goalsOf("Participant2"),
         minute: typeof clockSeconds === "number" ? Math.floor(clockSeconds / 60) : null,
+        statusId,
+        finished: isMatchOver(statusId),
         gameState: latest?.GameState ?? null,
         asOf: latest?.Ts ?? Date.now(),
         seq: latest?.Seq ?? -1,
@@ -278,6 +338,8 @@ export class FixturesService {
         home: last.home,
         away: last.away,
         minute: null,
+        statusId: last.statusId ?? null,
+        finished: isMatchOver(last.statusId),
         gameState: last.gameState,
         asOf: last.asOf,
         seq: last.seq,
@@ -285,7 +347,8 @@ export class FixturesService {
       };
     }
     return {
-      fixtureId, hasScore: false, home: 0, away: 0, minute: null, gameState: null, asOf: 0, seq: -1,
+      fixtureId, hasScore: false, home: 0, away: 0, minute: null,
+      statusId: null, finished: false, gameState: null, asOf: 0, seq: -1,
     };
   }
 
@@ -294,10 +357,10 @@ export class FixturesService {
    * with the archive so fixtures that have left the feed window (or the feed
    * itself, post-tournament) never disappear from the board. Never throws.
    */
-  async list(): Promise<Fixture[]> {
-    // Replay kickoff is overlaid on the way out, never stored in the cache.
+  async list(): Promise<FixtureWithStatus[]> {
+    // Phase and replay kickoff are overlaid on the way out, never cached.
     if (this.cache && Date.now() - this.cache.at < 60_000) {
-      return this.withReplayKickoff(this.cache.fixtures);
+      return this.withReplayKickoff(this.withStatus(this.cache.fixtures));
     }
 
     let fetched: Fixture[] | null = null;
@@ -336,6 +399,6 @@ export class FixturesService {
 
     // Don't cache an empty miss — retry on the next call.
     if (fixtures.length) this.cache = { at: Date.now(), fixtures };
-    return this.withReplayKickoff(fixtures);
+    return this.withReplayKickoff(this.withStatus(fixtures));
   }
 }

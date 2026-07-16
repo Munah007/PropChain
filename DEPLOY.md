@@ -29,8 +29,70 @@ On Railway:
 | `PRIVY_APP_ID` / `PRIVY_APP_SECRET` | optional | TEE-managed wallets + token auth |
 | `AGENT_TICK_MS` | `20000` (or lower for demos) | 12th Man loop cadence |
 
-The **keeper** (records feeds + settles) should run as its own always-on
-process/service with its keypair funded on devnet.
+## The keeper (its own service)
+
+The keeper records feeds and settles bets. It talks to the server through
+**nothing** — no HTTP, no queue. It writes to Solana; the server reads Solana
+back. That decoupling is the point (`anyone can run this binary against the
+public program`), so the keeper deploys as a service of its own.
+
+**Root directory: the repo root — NOT `/keeper`.** `index.ts` resolves
+`REPO_ROOT` two levels up from `keeper/src`, so a `/keeper` root makes it look
+for `/idls/txoracle.json` and fail. It's also an npm workspace that depends on
+`@propchain/txline`, which only resolves from the root `package.json`.
+
+| | |
+|---|---|
+| Root directory | repo root |
+| Start command | `npm run keeper` |
+
+### ⚠️ The one that bites here: it invents its own wallet
+
+`keeper-keypair.json` and `txline-creds.json` are **gitignored**, so they are
+never in the image. A missing keypair is not an error — `loadOrCreateKeypair`
+**generates a fresh one** and logs `generated keypair … fund it with devnet SOL`.
+
+On an ephemeral disk that means *every redeploy mints a new, unfunded keeper*.
+It cannot pay transaction fees, so nothing settles — and the board doesn't look
+broken, it just shows "Awaiting proof" forever on every finished match. Set
+`KEEPER_SECRET` (same idea as the server's `FUNDER_SECRET`): it is checked
+first and never touches disk.
+
+### Keeper env
+
+| Var | Value | Why |
+|---|---|---|
+| `KEEPER_SECRET` | keeper keypair secret-key JSON array | **or it silently settles nothing — see above** |
+| `TXLINE_JWT` / `TXLINE_API_TOKEN` | activated TxLINE creds | `CREDS_PATH` has no env override; with these set the missing file is harmless |
+| `RPC_URL` | a devnet RPC (default works) | chain access |
+| `TXLINE_NETWORK` | `devnet` (default) | picks the TxLINE origin |
+| `RECORDINGS_DIR` | a **mounted volume** | see below |
+| `RECONCILE_INTERVAL_MS` | `30000` (default) | settlement tick |
+
+### Recordings are a deadline-shaped risk
+
+The keeper writes every feed event to `RECORDINGS_DIR` — "our demo/test
+lifeline once the tournament (and the free data) ends Jul 19." On ephemeral
+disk each redeploy throws away whatever it captured, including the semis and
+the final. Mount a volume, or pull the files down and commit them before the
+19th. (The server's `RECORDINGS_DIR` is a separate shipped copy for the replay
+demo; the two services never share a directory.)
+
+### Don't run the supervisor on Railway
+
+`npm run keeper:watch` (`keeper/supervise.sh`) restarts the keeper on exit.
+Railway already restarts a crashed container, and putting the supervisor in
+front of it means the platform sees a permanently "up" service while the keeper
+crash-loops invisibly inside — turning a visible failure into a silent one, the
+exact thing that makes a dead keeper expensive. Use `npm run keeper` here and
+let the platform supervise. `keeper:watch` is for a laptop or a bare VM, where
+nothing else is watching.
+
+### Smoke test
+
+Logs should show `TxLINE credentials ready (devnet)` and `settlement engine
+armed`, **and must NOT show** `generated keypair … fund it with devnet SOL`.
+That line means it is running as a stranger with an empty wallet.
 
 ## App env (build time)
 
@@ -70,5 +132,9 @@ are still safe on-chain; you just re-link the email. The account file record is:
 - [ ] `NEXT_PUBLIC_API_URL` is the https server URL
 - [ ] `CORS_ORIGINS` = the app origin
 - [ ] Funder wallet funded with devnet SOL; `PUSDC_MINT` set
-- [ ] Keeper running and funded
+- [ ] Keeper service: root = repo root, start = `npm run keeper`
+- [ ] `KEEPER_SECRET` set and that wallet funded — check the logs for
+      `generated keypair … fund it`, which means it isn't
+- [ ] Keeper `RECORDINGS_DIR` on a volume (or recordings pulled + committed
+      before the free feed ends Jul 19)
 - [ ] Smoke test as a stranger: create account → refresh/restart → log back in with the same email → same wallet, same balance

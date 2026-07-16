@@ -6,7 +6,7 @@
 // dev-mode caller-supplied userKey. Mutating endpoints elsewhere require the
 // sessionToken issued alongside this session (see auth/).
 
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync, getAccount } from "@solana/spl-token";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -70,6 +70,15 @@ export class SessionService {
     return !!this.users[userKey];
   }
 
+  /**
+   * True when this user already has a wallet. Such a request cannot trigger the
+   * faucet — getSession() only funds on first creation — so the throttle guard
+   * lets it through. Purely a read; never creates anything.
+   */
+  isKnownUser(userKey: string): boolean {
+    return Boolean(this.users[userKey]);
+  }
+
   async getSession(userKey: string, name?: string) {
     let created = false;
     if (!this.users[userKey]) {
@@ -80,15 +89,7 @@ export class SessionService {
     if (created || name) writeFileSync(this.usersPath, JSON.stringify(this.users, null, 2));
     if (created) await this.funding.fund(this.users[userKey].address, userKey);
     const wallet = this.users[userKey];
-    const address = new PublicKey(wallet.address);
-    const sol = (await this.connection.getBalance(address)) / LAMPORTS_PER_SOL;
-    let pusdc = 0;
-    try {
-      const ata = getAssociatedTokenAddressSync(await this.funding.ensureMint(), address);
-      pusdc = Number((await getAccount(this.connection, ata)).amount) / 1_000_000;
-    } catch {
-      /* no ATA yet */
-    }
+    const { sol, pusdc } = await this.readBalances(wallet.address);
     return {
       userKey,
       email: userKey,
@@ -99,5 +100,32 @@ export class SessionService {
       created,
       provider: this.wallets.kind,
     };
+  }
+
+  /**
+   * Self-serve top-up for an existing, authenticated user. Identity is the
+   * verified userKey (never a body field). Returns the funding outcome plus
+   * refreshed balances so the client can update without a second round-trip.
+   */
+  async topUp(userKey: string) {
+    const wallet = this.users[userKey];
+    if (!wallet) throw new NotFoundException("no wallet for this session");
+    const result = await this.funding.topUp(wallet.address, userKey);
+    const { sol, pusdc } = await this.readBalances(wallet.address);
+    return { ...result, sol, pusdc };
+  }
+
+  /** Live on-chain SOL + pUSDC for an address. Missing ATA reads as 0 pUSDC. */
+  private async readBalances(address: string): Promise<{ sol: number; pusdc: number }> {
+    const pk = new PublicKey(address);
+    const sol = (await this.connection.getBalance(pk)) / LAMPORTS_PER_SOL;
+    let pusdc = 0;
+    try {
+      const ata = getAssociatedTokenAddressSync(await this.funding.ensureMint(), pk);
+      pusdc = Number((await getAccount(this.connection, ata)).amount) / 1_000_000;
+    } catch {
+      /* no ATA yet */
+    }
+    return { sol, pusdc };
   }
 }

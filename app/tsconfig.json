@@ -9,6 +9,10 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    // Tests run on node's type stripping (`npm test`), which resolves the real
+    // file and so needs the .ts extension. Safe here: noEmit is on, so nothing
+    // ever ships an unrewritten specifier.
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",

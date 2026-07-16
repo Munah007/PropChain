@@ -3,6 +3,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, setSessionToken, type Session } from "./api";
 
+/**
+ * Unix seconds, advancing on its own timer.
+ *
+ * Time-derived UI (match phase, day grouping) must not be computed from a
+ * Date.now() captured inside a data-keyed useMemo: polls keep their last-good
+ * value on error, so a sustained API failure would otherwise freeze the clock
+ * and pin every card at the phase it held when the feed went quiet. Ticking
+ * independently means kickoffs and the LIVE/finished backstop keep landing
+ * whether or not fresh data ever arrives. 1s to match <Countdown>, so a card
+ * flips the instant its countdown reaches zero.
+ */
+export function useNow(intervalMs = 1000): number {
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
 /** Poll an async source on an interval; refetch() for instant refresh. */
 export function usePoll<T>(fn: () => Promise<T>, intervalMs: number, deps: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);

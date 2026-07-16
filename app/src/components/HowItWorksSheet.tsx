@@ -10,7 +10,7 @@ const STEPS = [
   },
   {
     n: "02",
-    title: "Stake either side",
+    title: "Bet either side",
     body: "In pUSDC. Funds sit in an on-chain escrow no one — including us — can touch.",
   },
   {

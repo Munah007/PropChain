@@ -14,6 +14,7 @@ import { SessionService } from "./session.service";
 import { TxsService } from "../solana/txs.service";
 import { AuthService } from "../auth/auth.service";
 import { SessionThrottleGuard } from "../auth/session-throttle.guard";
+import { SessionAuthGuard } from "../auth/session-auth.guard";
 import { requireString } from "../common/validation";
 
 @Controller()
@@ -56,6 +57,15 @@ export class SessionController {
   exists(@Query("email") email?: string) {
     const key = requireString(email, "email").toLowerCase();
     return { exists: this.session.exists(key) };
+  }
+
+  // Self-serve top-up: identity comes from the verified session token, never
+  // the body. All abuse gates (low-balance, per-user cooldown, global budget)
+  // live server-side in FundingService.
+  @Post("session/topup")
+  @UseGuards(SessionAuthGuard)
+  async topUp(@Req() req: any) {
+    return this.session.topUp(req.userKey);
   }
 
   @Get("users/:userKey/positions")

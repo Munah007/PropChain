@@ -11,6 +11,7 @@ export interface RecordedFrame {
   home: number; // cumulative goals at this point in the match
   away: number;
   minute: number | null; // match clock minute when the clock was running
+  statusId: number | null; // recorded TxLINE StatusId — replays the phase too
   gameState: string | null;
 }
 

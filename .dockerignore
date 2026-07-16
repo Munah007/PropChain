@@ -6,7 +6,11 @@ node_modules
 .git
 app/.next
 server/dist
-target
+# Drop the heavy Rust build artifacts, but KEEP the Anchor IDL + types the
+# keeper reads at startup (target/idl/propchain.json). Mirrors .gitignore.
+target/*
+!target/idl
+!target/types
 .anchor
 test-ledger
 recordings

@@ -118,7 +118,7 @@ export function BetDetailSheet({
         bet.status === "settled"
           ? `“${bet.result ? labels.over : labels.under}” won — winners claim from the pool`
           : bet.status === "voided"
-            ? "All stakes refundable"
+            ? "All bets refundable"
             : bet.pending
               ? "Locks when the challenge window lapses — any later proof can overturn until then"
               : "—",
@@ -147,7 +147,7 @@ export function BetDetailSheet({
         {stakeable && (
           <div className="rounded-xl border border-hairline bg-raised p-3">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-3">
-              Stake · closes at kickoff, in <Countdown ts={bet.kickoffTs} />
+              Your bet · closes at kickoff, in <Countdown ts={bet.kickoffTs} />
             </p>
             <div className="flex gap-2">
               <div className="flex flex-1 overflow-hidden rounded-lg border border-hairline">
@@ -174,22 +174,22 @@ export function BetDetailSheet({
                 value={amount}
                 onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
                 className="tnum w-24 rounded-lg border border-hairline bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-over"
-                aria-label="Stake amount in pUSDC"
+                aria-label="Bet amount in pUSDC"
               />
               <Button
                 onClick={() =>
                   session
-                    ? run("stake", `Staked ${amount} pUSDC on “${labelOf(effectiveSide)}”`, () => api.stake(bet.address, { userKey: session.userKey, side: effectiveSide, amount }))
-                    : onRequireAuth(`stake ${amount} pUSDC on “${labelOf(effectiveSide)}”`)
+                    ? run("stake", `Bet ${amount} pUSDC on “${labelOf(effectiveSide)}”`, () => api.stake(bet.address, { userKey: session.userKey, side: effectiveSide, amount }))
+                    : onRequireAuth(`bet ${amount} pUSDC on “${labelOf(effectiveSide)}”`)
                 }
                 disabled={busy !== null || amount <= 0}
               >
-                {busy === "stake" ? "Staking…" : session ? "Stake" : "Sign in & stake"}
+                {busy === "stake" ? "Placing…" : session ? "Place bet" : "Sign in & bet"}
               </Button>
             </div>
             {amount > 0 && (
               <p className="tnum mt-2.5 font-mono text-xs text-ink-2">
-                Stake {money(amount)} → get{" "}
+                Bet {money(amount)} → get{" "}
                 <span className={`font-semibold ${effectiveSide === "over" ? "text-over" : "text-under"}`}>
                   {money(payoutIfWins(bet, effectiveSide, amount))} pUSDC
                 </span>{" "}

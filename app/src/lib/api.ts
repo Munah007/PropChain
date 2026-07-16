@@ -22,12 +22,20 @@ export interface Session {
   sessionToken?: string;
 }
 
+// Outcome of POST /session/topup: the funding result plus refreshed balances.
+export type TopUp = { sol: number; pusdc: number } & (
+  | { funded: true; amount: number }
+  | { funded: false; reason: "not_low" | "cooldown" | "global_cap"; retryAfterMs?: number }
+);
+
 export interface Fixture {
   fixtureId: number;
   home: string;
   away: string;
   kickoffTs: number;
   competition: string;
+  statusId: number | null; // latest TxLINE StatusId; null if never scored
+  finished: boolean; // server-derived: play has stopped for good
 }
 
 export interface LiveScore {
@@ -36,7 +44,9 @@ export interface LiveScore {
   home: number;
   away: number;
   minute: number | null;
-  gameState: string | null;
+  statusId: number | null;
+  finished: boolean;
+  gameState: string | null; // always "scheduled" on the feed — do not read it
   asOf: number;
   seq: number;
 }
@@ -130,6 +140,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ userKey: userKey.toLowerCase(), name }),
     }),
+
+  topUp: () => request<TopUp>("/session/topup", { method: "POST", body: "{}" }),
 
   fixtures: () => request<Fixture[]>("/fixtures"),
 

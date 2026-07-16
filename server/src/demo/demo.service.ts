@@ -30,6 +30,7 @@ import { BetsService } from "../bets/bets.service";
 import { CreateBetDto, StakeDto } from "../bets/bets.dto";
 import { SessionService } from "../session/session.service";
 import { Fixture, FixturesService } from "../fixtures/fixtures.service";
+import { isMatchEnded } from "../fixtures/phases";
 import { RecordedFrame, remapReplayTimeline } from "./replay";
 
 const DEMO_USER = "demo@propchain.app"; // opens the bet, stakes over
@@ -202,6 +203,7 @@ export class DemoService {
             home: last.home,
             away: last.away,
             minute: null,
+            statusId: last.statusId ?? null,
             gameState: last.gameState,
           },
         ],
@@ -248,6 +250,7 @@ export class DemoService {
       const frames: RecordedFrame[] = [];
       let home = 0;
       let away = 0;
+      let statusId: number | null = null;
       let finished = false;
       let lastTs = 0;
       for (const e of events) {
@@ -255,7 +258,13 @@ export class DemoService {
         const goalsAway = e?.Score?.Participant2?.Total?.Goals;
         if (typeof goalsHome === "number") home = goalsHome;
         if (typeof goalsAway === "number") away = goalsAway;
-        if (e.StatusId === 5 || e.StatusId === 100) finished = true; // F / game_finalised
+        // Phase folds forward like goals — plenty of events omit StatusId, and
+        // a frame that read it straight off the event would drop the replayed
+        // match back to "live" every time one arrived.
+        if (typeof e.StatusId === "number") statusId = e.StatusId;
+        // F / FET / FPE / game_finalised / post-final — a match that went to
+        // extra time or pens ends on 10 or 13 and never reports 5.
+        if (isMatchEnded(statusId)) finished = true;
         // Clamp timestamps to non-decreasing so the remapped timeline stays
         // monotonic even across feed reconnects with slight clock skew.
         lastTs = Math.max(lastTs, e.Ts ?? 0);
@@ -269,6 +278,7 @@ export class DemoService {
             e?.Clock?.Running && typeof e.Clock.Seconds === "number"
               ? Math.floor(e.Clock.Seconds / 60)
               : null,
+          statusId,
           gameState: e.GameState ?? null,
         });
       }

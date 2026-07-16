@@ -1,5 +1,59 @@
 import type { Bet, Fixture, FixtureOdds, Position } from "./api";
 
+// ---------- match phase wording ----------
+//
+// Cosmetic only. The server decides whether a match is over (`finished`, from
+// the TxLINE phase table in server/src/fixtures/phases.ts); these two just word
+// what the card says. An unrecognised StatusId falls back to the caller's
+// default, so a code we've never seen degrades to "Live" rather than blanking —
+// a wrong label here is cosmetic and never reaches settlement.
+
+const clocked = (label: string, minute: number | null) =>
+  minute != null ? `${label} · ${minute}'` : label;
+
+/** Wording for a match the feed still considers in progress. */
+export function livePhaseLabel(statusId: number | null | undefined, minute: number | null): string | null {
+  switch (statusId) {
+    case 2: // H1
+    case 4: // H2
+      return clocked("Live", minute);
+    case 3: // HT — the feed stops the clock, so `minute` is null here
+      return "Half time";
+    case 6: // WET
+      return "Extra time next";
+    case 7: // ET1
+    case 9: // ET2
+      return clocked("Extra time", minute);
+    case 8: // HTET
+      return "Extra time · half time";
+    case 11: // WPE
+      return "Penalties next";
+    case 12: // PE
+      return "Penalties";
+    case 14: // I — may resume
+      return "Interrupted";
+    case 18: // TXCS — may resume
+      return "Coverage suspended";
+    default:
+      return null;
+  }
+}
+
+/** Wording for a match the feed has stopped for good (`finished` is true). */
+export function finishedLabel(statusId: number | null | undefined): string {
+  switch (statusId) {
+    case 15:
+      return "Abandoned";
+    case 16:
+    case 17:
+      return "Cancelled";
+    case 19:
+      return "Postponed";
+    default:
+      return "Full time";
+  }
+}
+
 // Market templates. TxLINE base stat keys: odd = home, even = away.
 // lineKind "half" markets show sportsbook half-lines: displayed line =
 // on-chain integer threshold + 0.5 (strict Greater ≡ over the half-line).
@@ -179,12 +233,12 @@ export function kickoffLabel(ts: number): string {
 /** Translate raw program/RPC errors into human feedback. */
 const PROGRAM_ERRORS: [RegExp, string][] = [
   [/SideMismatch|0x1775/, "You already have a position on the other side — top-ups must stay on your original side."],
-  [/StakingClosed|0x1773/, "Staking closed at kickoff for this bet."],
+  [/StakingClosed|0x1773/, "Betting closed at kickoff for this bet."],
   [/BetNotOpen|0x1772/, "This bet is no longer open."],
   [/AmountZero|0x1774/, "Enter an amount greater than zero."],
   [/AlreadyClaimed|0x1781/, "You've already claimed this one."],
   [/NotAWinner|0x1780/, "This position is on the losing side — nothing to claim."],
-  [/insufficient funds|insufficient lamports|custom program error: 0x1$/i, "Not enough pUSDC in your wallet for this stake."],
+  [/insufficient funds|insufficient lamports|custom program error: 0x1$/i, "Not enough pUSDC in your wallet for this bet."],
 ];
 
 export function friendlyError(message: string): string {
@@ -287,7 +341,7 @@ export function proofBadge(bet: Bet): ProofBadge | null {
   if (bet.status === "voided") {
     return {
       label: "Voided on-chain",
-      title: "No final proof arrived in time — every stake is refundable.",
+      title: "No final proof arrived in time — every bet is refundable.",
       provisional: false,
     };
   }
@@ -311,9 +365,27 @@ export interface PositionSummary {
   payout: number; // pUSDC receivable now (won unclaimed / refundable)
 }
 
-/** How a user's position on a bet stands right now. */
-export function positionSummary(bet: Bet, position: Position): PositionSummary {
-  const now = Math.floor(Date.now() / 1000);
+/**
+ * True when the feed says this bet's match has stopped for good. A bet stays
+ * Open until the keeper proposes a proof, so "past kickoff" on its own never
+ * means in play. Unknown fixture → false, falling back to the clock.
+ */
+export function matchOver(bet: Bet, fixtures: Fixture[]): boolean {
+  return fixtures.find((f) => String(f.fixtureId) === bet.fixtureId)?.finished ?? false;
+}
+
+/**
+ * How a user's position on a bet stands right now. `now` (unix seconds) is
+ * passed in rather than read from the clock so callers drive it from a ticking
+ * source — a summary computed inside a data-keyed memo would otherwise freeze
+ * at whatever second the last poll landed on.
+ */
+export function positionSummary(
+  bet: Bet,
+  position: Position,
+  fixtures: Fixture[],
+  now: number
+): PositionSummary {
   const stake = pusdc(position.amount);
 
   if (bet.status === "voided") {
@@ -345,7 +417,14 @@ export function positionSummary(bet: Bet, position: Position): PositionSummary {
   }
 
   // open
-  return now < bet.kickoffTs
-    ? { outcome: "open", label: "Open", tone: "neutral", claimable: false, payout: 0 }
-    : { outcome: "in-play", label: "In play", tone: "pending", claimable: false, payout: 0 };
+  if (now < bet.kickoffTs) {
+    return { outcome: "open", label: "Open", tone: "neutral", claimable: false, payout: 0 };
+  }
+  // Past kickoff, but the final whistle has blown and the keeper hasn't
+  // proposed yet — the same "waiting on a result" state as settlementPending,
+  // never in play.
+  if (matchOver(bet, fixtures)) {
+    return { outcome: "awaiting", label: "Awaiting proof", tone: "pending", claimable: false, payout: 0 };
+  }
+  return { outcome: "in-play", label: "In play", tone: "pending", claimable: false, payout: 0 };
 }

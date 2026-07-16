@@ -24,6 +24,42 @@ const CREDS_PATH = join(REPO_ROOT, "keeper", "txline-creds.json");
 const NETWORK = (process.env.TXLINE_NETWORK ?? "devnet") as TxLineNetwork;
 const RPC_URL = process.env.RPC_URL ?? "https://api.devnet.solana.com";
 const RECONCILE_INTERVAL_MS = Number(process.env.RECONCILE_INTERVAL_MS ?? 30_000);
+const HEARTBEAT_PATH = process.env.KEEPER_HEARTBEAT ?? join(REPO_ROOT, "keeper", "heartbeat.json");
+
+// Timestamp every line. Without this the log cannot answer the two questions
+// you actually ask of it — when did it stop, and how long did propose→finalize
+// take — and "it died at some point today" is the whole diagnosis you get.
+for (const level of ["log", "error", "warn"] as const) {
+  const original = console[level].bind(console);
+  console[level] = (...args: unknown[]) => original(new Date().toISOString(), ...args);
+}
+
+// The keeper is the only thing that settles bets, and when it goes the UI just
+// says "Awaiting proof" forever — a silent failure that cost 8 hours once. Exit
+// loudly and non-zero so the supervisor restarts us and the reason is on record.
+process.on("unhandledRejection", (reason) => {
+  console.error("[keeper] fatal: unhandled rejection —", reason);
+  process.exit(1);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[keeper] fatal: uncaught exception —", err);
+  process.exit(1);
+});
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+  process.on(sig, () => {
+    console.error(`[keeper] received ${sig} — exiting`);
+    process.exit(sig === "SIGHUP" ? 1 : 0); // SIGHUP = lost terminal: worth restarting
+  });
+}
+
+/** Liveness for anything watching: a stalled loop looks alive to a supervisor. */
+function beat(state: "reconciled" | "starting") {
+  try {
+    writeFileSync(HEARTBEAT_PATH, JSON.stringify({ at: Date.now(), iso: new Date().toISOString(), state }));
+  } catch {
+    /* a heartbeat that can't be written must never take the keeper down */
+  }
+}
 
 function loadOrCreateKeypair(path: string): Keypair {
   if (process.env.KEEPER_SECRET) {
@@ -73,6 +109,9 @@ async function settlementLoop(engine: SettlementEngine) {
   while (true) {
     try {
       await engine.reconcile();
+      // Only a completed pass counts: a heartbeat on every tick regardless of
+      // outcome would keep reporting "alive" through a feed that never answers.
+      beat("reconciled");
     } catch (err) {
       console.error(`[settle] reconcile failed: ${(err as Error).message}`);
     }
@@ -82,6 +121,7 @@ async function settlementLoop(engine: SettlementEngine) {
 
 async function main() {
   mkdirSync(RECORDINGS_DIR, { recursive: true });
+  beat("starting");
   const keypair = loadOrCreateKeypair(KEYPAIR_PATH);
   const connection = new Connection(RPC_URL, "confirmed");
   const txline = new TxLineClient(NETWORK, CREDS_PATH);

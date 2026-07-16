@@ -13,7 +13,8 @@
     "test:program": "anchor test",
     "keeper": "npm run start -w keeper",
     "test:settlement": "node --test tests/settlement.test.ts",
-    "server": "npm run start -w server"
+    "server": "npm run start -w server",
+    "keeper:watch": "./keeper/supervise.sh"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

@@ -99,7 +99,7 @@ export function AgentSheet({
       return;
     }
     if (config.minStake <= 0 || config.minStake > config.maxStake) {
-      setError("Min stake must be above 0 and no more than max stake.");
+      setError("Min bet must be above 0 and no more than max bet.");
       return;
     }
     setBusy("save");
@@ -240,7 +240,7 @@ export function AgentSheet({
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-3">When to step in</p>
         <div className="grid grid-cols-2 gap-2">
           {([
-            ["react", "Answer doubters", "Only bets when someone stakes against your team"],
+            ["react", "Answer doubters", "Only bets when someone bets against your team"],
             ["seed", "Back every market", "Takes your side of every market on your team's matches"],
           ] as const).map(([mode, title, sub]) => (
             <button

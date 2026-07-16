@@ -28,3 +28,5 @@ server/agent-config.json
 server/agent-state.json
 server/dist/
 keeper/keeper.log
+# keeper runtime heartbeat — rewritten every tick, never commit
+keeper/heartbeat.json

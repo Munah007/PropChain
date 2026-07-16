@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type Fixture, type Session } from "@/lib/api";
 import { MARKETS, fillLabel, kickoffLabel, lineOf } from "@/lib/format";
-import { Button, Sheet } from "./ui";
+import { Button, Picker, Sheet } from "./ui";
 
 const GROUPS = Array.from(new Set(MARKETS.map((m) => m.group)));
 
@@ -84,35 +84,37 @@ export function CreateBetSheet({
         <div className="space-y-4">
           <div>
             <label className={label} htmlFor="match">Match</label>
-            <select id="match" className={field} value={fixture?.fixtureId} onChange={(e) => setFixtureId(Number(e.target.value))}>
-              {upcoming.map((f) => (
-                <option key={f.fixtureId} value={f.fixtureId}>
-                  {f.home} vs {f.away} — {kickoffLabel(f.kickoffTs)}
-                </option>
-              ))}
-            </select>
+            <Picker
+              id="match"
+              title="Pick a match"
+              value={String(fixture?.fixtureId ?? "")}
+              onChange={(v) => setFixtureId(Number(v))}
+              options={upcoming.map((f) => ({
+                value: String(f.fixtureId),
+                label: `${f.home} vs ${f.away} — ${kickoffLabel(f.kickoffTs)}`,
+              }))}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className={hasStepper ? "" : "col-span-2"}>
               <label className={label} htmlFor="market">Market</label>
-              <select
+              <Picker
                 id="market"
-                className={field}
+                title="Pick a market"
                 value={marketId}
-                onChange={(e) => {
-                  setMarketId(e.target.value);
+                onChange={(v) => {
+                  setMarketId(v);
                   setThreshold(null); // reset to the new market's default line
                 }}
-              >
-                {GROUPS.map((group) => (
-                  <optgroup key={group} label={group}>
-                    {MARKETS.filter((m) => m.group === group).map((m) => (
-                      <option key={m.id} value={m.id}>{fill(m.label)}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+                options={GROUPS.flatMap((group) =>
+                  MARKETS.filter((m) => m.group === group).map((m) => ({
+                    value: m.id,
+                    label: fill(m.label),
+                    group,
+                  }))
+                )}
+              />
             </div>
             {hasStepper && (
               <div>
@@ -160,7 +162,7 @@ export function CreateBetSheet({
           </p>
 
           <div>
-            <span className={label}>Your opening stake</span>
+            <span className={label}>Your opening bet</span>
             <div className="flex gap-2">
               <div className="flex flex-1 overflow-hidden rounded-lg border border-hairline">
                 <button
@@ -186,7 +188,7 @@ export function CreateBetSheet({
                   className={`${field} tnum pr-14`}
                   value={amount}
                   onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
-                  aria-label="Stake amount in pUSDC"
+                  aria-label="Bet amount in pUSDC"
                 />
                 <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-ink-3">pUSDC</span>
               </div>

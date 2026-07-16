@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Bet } from "@/lib/api";
-import { usePoll, useSession } from "@/lib/hooks";
+import { useNow, usePoll, useSession } from "@/lib/hooks";
 import { SessionBar } from "@/components/SessionBar";
 import { AuthSheet } from "@/components/AuthSheet";
 import { MatchCard, matchPhase, type MatchGroup } from "@/components/MatchCard";
 import { CreateBetSheet } from "@/components/CreateBetSheet";
 import { DemoBanner } from "@/components/DemoBanner";
 import { BetDetailSheet } from "@/components/BetDetailSheet";
+import { SettlementReveal } from "@/components/SettlementReveal";
 import { MyBetsPanel } from "@/components/MyBets";
 import { HowItWorksSheet } from "@/components/HowItWorksSheet";
 import { AgentSheet } from "@/components/AgentSheet";
@@ -57,6 +58,7 @@ function SectionLabel({ children, accent }: { children: React.ReactNode; accent?
 }
 
 export default function Home() {
+  const now = useNow();
   const { session, loading, signIn, refresh, signOut } = useSession();
   const { data: bets, refetch: refetchBets } = usePoll(() => api.bets(), 8000);
   const { data: fixtures } = usePoll(() => api.fixtures(), 60000);
@@ -93,6 +95,11 @@ export default function Home() {
   const pendingAction = useRef<(() => void) | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [reveal, setReveal] = useState<{ address: string } | null>(null);
+  // Bet statuses as of the previous poll. Seeded on the first tick and never
+  // read from it, so signing in with already-settled bets can't replay a reveal
+  // for something the user settled days ago.
+  const seenStatus = useRef<Map<string, Bet["status"]> | null>(null);
 
   function celebrate(message: string, signature?: string) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -103,7 +110,6 @@ export default function Home() {
   /** One entry per match — every known fixture plus any fixture that has
    *  markets — live first, then upcoming by kickoff, then finished. */
   const matches = useMemo<MatchGroup[]>(() => {
-    const now = Math.floor(Date.now() / 1000);
     const byFixture = new Map<string, Bet[]>();
     for (const bet of bets ?? []) {
       const list = byFixture.get(bet.fixtureId) ?? [];
@@ -131,7 +137,7 @@ export default function Home() {
       const kb = b.fixture?.kickoffTs ?? b.bets[0]?.kickoffTs ?? 0;
       return matchPhase(a, now) === "finished" ? kb - ka : ka - kb;
     });
-  }, [bets, fixtures]);
+  }, [bets, fixtures, now]);
 
   const positionByBet = useMemo(() => new Map((positions ?? []).map((p) => [p.bet, p])), [positions]);
   const allBets = useMemo(() => matches.flatMap((m) => m.bets), [matches]);
@@ -140,16 +146,15 @@ export default function Home() {
     () =>
       (positions ?? []).filter((pos) => {
         const bet = betByAddress.get(pos.bet);
-        return bet ? positionSummary(bet, pos).claimable : false;
+        return bet ? positionSummary(bet, pos, fixtures ?? [], now).claimable : false;
       }).length,
-    [positions, betByAddress]
+    [positions, betByAddress, fixtures, now]
   );
   const selectedBet = allBets.find((b) => b.address === selected?.address) ?? null;
 
   // Board sections: live pinned, upcoming grouped by day, recent results, and
   // a collapsed tail of finished fixtures nobody made a market on.
   const board = useMemo(() => {
-    const now = Math.floor(Date.now() / 1000);
     const withMarketsOrActive: MatchGroup[] = [];
     const emptyFinished: MatchGroup[] = [];
     for (const m of matches) {
@@ -169,7 +174,28 @@ export default function Home() {
       else days.push({ label, matches: [m] });
     }
     return { live, days, finished, emptyFinished };
-  }, [matches]);
+  }, [matches, now]);
+
+  // The settlement moment: a bet the user actually holds has just been proved.
+  // Only fires on a transition we watched happen, and only for a position they
+  // hold — a stranger's market settling is not their moment.
+  useEffect(() => {
+    if (!bets) return;
+    const now = new Map(bets.map((b) => [b.address, b.status]));
+    const before = seenStatus.current;
+    seenStatus.current = now;
+    if (!before) return; // first poll: baseline only
+    for (const bet of bets) {
+      const was = before.get(bet.address);
+      if (was && was !== "settled" && bet.status === "settled" && positionByBet.has(bet.address)) {
+        setReveal({ address: bet.address });
+        break; // one at a time; the rest stay on the board
+      }
+    }
+  }, [bets, positionByBet]);
+
+  const revealBet = reveal ? betByAddress.get(reveal.address) ?? null : null;
+  const revealPosition = reveal ? positionByBet.get(reveal.address) ?? null : null;
 
   // default-expand the first match that has markets
   useEffect(() => {
@@ -474,6 +500,9 @@ export default function Home() {
           setAccountOpen(false);
           signOut();
         }}
+        onToppedUp={() => {
+          if (session) refresh(session.email);
+        }}
       />
       {session && (
         <CreateBetSheet
@@ -497,8 +526,20 @@ export default function Home() {
           onRequireAuth={(intent) => requireAuth(intent)}
         />
       )}
+      {revealBet && revealPosition && (
+        <SettlementReveal
+          bet={revealBet}
+          position={revealPosition}
+          fixtures={fixtures ?? []}
+          onClose={() => setReveal(null)}
+          onClaim={() => {
+            setReveal(null);
+            setTab("claim");
+          }}
+        />
+      )}
       {/* Rendered last on purpose: the auth sheet can be summoned from INSIDE
-          the bet-detail sheet ("Sign in & stake"), and both overlays share
+          the bet-detail sheet ("Sign in & bet"), and every overlay shares
           z-50 — DOM order is what puts this one on top. */}
       <AuthSheet
         open={auth.open}

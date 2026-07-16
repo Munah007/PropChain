@@ -10,6 +10,7 @@ import {
   betTitle,
   consensusForOver,
   kickoffLabel,
+  matchOver,
   matchup,
   money,
   payoutMultiple,
@@ -54,7 +55,10 @@ export function BetCard({
 }) {
   const now = Math.floor(Date.now() / 1000);
   const stakeable = bet.status === "open" && now < bet.kickoffTs;
-  const inPlay = bet.status === "open" && now >= bet.kickoffTs;
+  const started = bet.status === "open" && now >= bet.kickoffTs;
+  const over = matchOver(bet, fixtures);
+  const inPlay = started && !over;
+  const awaitingProof = started && over;
   const labels = sideLabels(bet, fixtures);
   const overX = payoutMultiple(bet, "over");
   const underX = payoutMultiple(bet, "under");
@@ -77,7 +81,7 @@ export function BetCard({
             )}
             <h3 className={`text-lg font-bold tracking-tight text-ink ${hideMatchup ? "" : "mt-1"}`}>{betTitle(bet, fixtures)}</h3>
           </div>
-          <StatusPill status={bet.status} live={inPlay} />
+          <StatusPill status={bet.status} live={inPlay} awaitingProof={awaitingProof} />
         </div>
 
         <div className="mt-3.5">
@@ -107,7 +111,7 @@ export function BetCard({
         <p className="tnum mt-3 font-mono text-xs text-ink-3">
           {stakeable ? (
             <>
-              Staking closes in <Countdown ts={bet.kickoffTs} /> · pool{" "}
+              Betting closes in <Countdown ts={bet.kickoffTs} /> · pool{" "}
               {money(pusdc(bet.overTotal) + pusdc(bet.underTotal))} pUSDC
             </>
           ) : bet.status === "settlementPending" && bet.pending ? (
@@ -126,7 +130,9 @@ export function BetCard({
               pool {money(pusdc(bet.overTotal) + pusdc(bet.underTotal))} pUSDC paid by Merkle proof
             </>
           ) : bet.status === "voided" ? (
-            <>Voided — every stake refundable</>
+            <>Voided — every bet refundable</>
+          ) : awaitingProof ? (
+            <>Full time — awaiting the settlement proof</>
           ) : (
             <>In play — settles at the final whistle, by proof</>
           )}

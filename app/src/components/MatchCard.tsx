@@ -5,7 +5,7 @@
 
 import { api, type Bet, type Fixture, type Position } from "@/lib/api";
 import { usePoll } from "@/lib/hooks";
-import { kickoffLabel, money, pusdc } from "@/lib/format";
+import { finishedLabel, kickoffLabel, livePhaseLabel, money, pusdc } from "@/lib/format";
 import { flag } from "@/lib/flags";
 import { BetCard } from "./BetCard";
 import { Countdown } from "./ui";
@@ -19,11 +19,16 @@ export interface MatchGroup {
 
 const MATCH_LENGTH_S = 3.5 * 3600; // "probably finished" horizon, covers ET + pens
 
+/**
+ * Live/finished comes from the feed's StatusId (surfaced as fixture.finished),
+ * with the clock horizon kept only as a backstop — an unknown fixture, a feed
+ * that never reported a phase, or a bet stuck Open must still stop reading LIVE
+ * eventually, and a keeper outage is exactly when the feed is least trustworthy.
+ */
 export function matchPhase(group: MatchGroup, now: number): "live" | "upcoming" | "finished" {
   const kickoff = group.fixture?.kickoffTs ?? group.bets[0]?.kickoffTs ?? 0;
   if (now < kickoff) return "upcoming";
-  // Time-bounded: a bet stuck Open past the horizon (keeper down, abandoned
-  // fixture) must read as finished/awaiting settlement, never pin LIVE forever.
+  if (group.fixture?.finished) return "finished"; // final whistle, per the feed
   return now < kickoff + MATCH_LENGTH_S ? "live" : "finished";
 }
 
@@ -54,7 +59,7 @@ export function MatchCard({
   onAddMarket: () => void;
 }) {
   const now = Math.floor(Date.now() / 1000);
-  const phase = matchPhase(group, now);
+  const boardPhase = matchPhase(group, now);
   const kickoff = group.fixture?.kickoffTs ?? group.bets[0]?.kickoffTs ?? 0;
   const home = group.fixture?.home ?? null;
   const away = group.fixture?.away ?? null;
@@ -62,12 +67,16 @@ export function MatchCard({
   const openCount = group.bets.filter((b) => b.status === "open" && now < b.kickoffTs).length;
 
   // Fetch the scoreline for live/finished matches we know the fixture of.
-  const showScore = (phase === "live" || phase === "finished") && group.fixture != null;
+  const showScore = (boardPhase === "live" || boardPhase === "finished") && group.fixture != null;
   const { data: score } = usePoll(
     () => (showScore ? api.score(group.fixture!.fixtureId) : Promise.resolve(null)),
-    phase === "live" ? 12000 : 60000,
-    [showScore, group.fixture?.fixtureId, phase]
+    boardPhase === "live" ? 12000 : 60000,
+    [showScore, group.fixture?.fixtureId, boardPhase]
   );
+  // This poll (12s) sees the final whistle before the board's fixtures poll
+  // (60s) does, so let it retire the LIVE badge early. Only ever tightens
+  // live→finished; the board catches up on its next tick.
+  const phase = boardPhase === "live" && score?.finished ? "finished" : boardPhase;
   // TxLINE consensus odds for the expanded match — one fetch feeds every card.
   const { data: odds } = usePoll(
     () => (expanded && group.bets.length ? api.odds(Number(group.key)) : Promise.resolve(null)),
@@ -108,14 +117,17 @@ export function MatchCard({
           {phase === "live" ? (
             <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-critical">
               <span className="live-dot size-1.5 rounded-full bg-critical" aria-hidden />
-              Live{score?.minute != null ? ` · ${score.minute}'` : ""}
+              {livePhaseLabel(score?.statusId, score?.minute ?? null) ??
+                `Live${score?.minute != null ? ` · ${score.minute}'` : ""}`}
             </span>
           ) : phase === "upcoming" ? (
             <span className="tnum font-mono text-[11px] text-ink-3">
               {kickoffLabel(kickoff)} · <Countdown ts={kickoff} />
             </span>
           ) : (
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">Full time</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">
+              {finishedLabel(score?.statusId ?? group.fixture?.statusId)}
+            </span>
           )}
           {openCount > 0 && (
             <span className="rounded-full border border-over/30 bg-over/10 px-2 py-0.5 text-[10px] font-bold text-over">

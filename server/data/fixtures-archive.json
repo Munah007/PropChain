@@ -1177,6 +1177,7 @@
   "lastScore": {
    "home": 1,
    "away": 2,
+   "statusId": 100,
    "gameState": "scheduled",
    "asOf": 1783813940264,
    "seq": 1184
@@ -1191,6 +1192,7 @@
   "lastScore": {
    "home": 3,
    "away": 1,
+   "statusId": 100,
    "gameState": "scheduled",
    "asOf": 1783828222499,
    "seq": 1306
@@ -1205,6 +1207,7 @@
   "lastScore": {
    "home": 0,
    "away": 2,
+   "statusId": 100,
    "gameState": "scheduled",
    "asOf": 1784063054751,
    "seq": 1026
@@ -1215,6 +1218,28 @@
   "home": "England",
   "away": "Argentina",
   "kickoffTs": 1784142000,
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 1,
+   "away": 2,
+   "statusId": 100,
+   "gameState": "scheduled",
+   "asOf": 1784150592580,
+   "seq": 963
+  }
+ },
+ {
+  "fixtureId": 18257865,
+  "home": "France",
+  "away": "England",
+  "kickoffTs": 1784408400,
+  "competition": "World Cup"
+ },
+ {
+  "fixtureId": 18257739,
+  "home": "Spain",
+  "away": "Argentina",
+  "kickoffTs": 1784487600,
   "competition": "World Cup"
  }
 ]

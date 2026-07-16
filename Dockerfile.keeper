@@ -1,0 +1,38 @@
+# Keeper service image. MUST live at the repo root.
+#
+# Why here and not keeper/: Railway sets a Docker build's context to the
+# directory the Dockerfile lives in. A keeper/Dockerfile builds with context
+# keeper/, where there is no root package.json and no packages/txline, so
+# `npm install --workspace @propchain/keeper` fails with "No workspaces found".
+# At the repo root the context is the whole monorepo, so the workspace graph —
+# including the @propchain/txline sibling — resolves.
+#
+# Why Docker at all: the keeper is the only service that depends on a sibling
+# workspace (@propchain/txline). Railpack's monorepo builder doesn't pull
+# sibling workspaces into a service's install layer, so its npm install 404s
+# @propchain/txline against the public registry.
+#
+# Railway: keeper service -> Settings -> set the Dockerfile path to
+# `Dockerfile.keeper` (root directory stays the repo root). The server service
+# has no sibling-workspace dep and keeps using Railpack — this file's non-default
+# name means Railway won't auto-apply it there.
+FROM node:22-slim
+
+# Parity with the Railpack build, which pulled libatomic1 for a native dep.
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# The whole monorepo (context is the repo root), so packages/txline and
+# idls/txoracle.json (which the keeper resolves from REPO_ROOT) are present.
+COPY . .
+
+# Install only what the keeper needs: its own deps, the linked @propchain/txline
+# workspace, and the root deps — not the server/app trees. --omit=dev keeps it
+# to runtime deps.
+RUN npm install --workspace @propchain/keeper --include-workspace-root --omit=dev
+
+# `npm run keeper` == `npm run start -w keeper` == `node src/index.ts`.
+# REPO_ROOT resolves two levels up from keeper/src -> /app.
+CMD ["npm", "run", "keeper"]

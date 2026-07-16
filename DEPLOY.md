@@ -41,21 +41,26 @@ public program`), so the keeper deploys as a service of its own.
 for `/idls/txoracle.json` and fail. It's also an npm workspace that depends on
 `@propchain/txline`, which only resolves from the root `package.json`.
 
-**Build it with the Dockerfile, NOT Railpack.** The keeper is the only service
-that depends on a *sibling* workspace (`@propchain/txline` at `packages/txline`).
-Railpack's monorepo builder does not pull sibling workspaces into a service's
-install layer, so `npm install` there sees `@propchain/txline` as external and
-fails with `404 … @propchain/txline is not in this registry`. `keeper/Dockerfile`
-copies the whole repo and installs at the root, so the workspace link resolves —
-verified with a local `docker build`. In the keeper service Settings, set the
-builder to Dockerfile with path `keeper/Dockerfile` (root directory stays the
-repo root). The `server` service is unaffected — it has no sibling-workspace dep,
-so it keeps using Railpack.
+**Build it with `Dockerfile.keeper`, NOT Railpack.** The keeper is the only
+service that depends on a *sibling* workspace (`@propchain/txline` at
+`packages/txline`). Railpack's monorepo builder does not pull sibling workspaces
+into a service's install layer, so `npm install` there sees `@propchain/txline`
+as external and fails with `404 … @propchain/txline is not in this registry`.
+
+The Dockerfile fixes that by installing from the repo root — but it **must live
+at the repo root**, not in `keeper/`. Railway sets a Docker build's context to
+the directory the Dockerfile lives in: a `keeper/Dockerfile` builds with context
+`keeper/`, where there's no root `package.json`, so `npm install --workspace
+@propchain/keeper` fails with `No workspaces found`. `Dockerfile.keeper` at the
+root builds with the whole monorepo as context, so the workspace graph resolves.
+Verified with a local `docker build` (txline symlinks, keeper runs past all
+imports). Its non-default name means Railway won't auto-apply it to the `server`
+service, which keeps using Railpack (it has no sibling-workspace dep).
 
 | | |
 |---|---|
 | Root directory | repo root |
-| Builder | Dockerfile — `keeper/Dockerfile` |
+| Builder | Dockerfile — path `Dockerfile.keeper` (at the repo root) |
 | Start command | `npm run keeper` (the Dockerfile `CMD`; leave the service's start command empty) |
 
 ### ⚠️ The one that bites here: it invents its own wallet

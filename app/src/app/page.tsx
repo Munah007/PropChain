@@ -15,6 +15,8 @@ import { HowItWorksSheet } from "@/components/HowItWorksSheet";
 import { AgentSheet } from "@/components/AgentSheet";
 import { AccountSheet } from "@/components/AccountSheet";
 import { BottomNav, type Tab } from "@/components/BottomNav";
+import { SignalsPanel } from "@/components/SignalsPanel";
+import { TrackRecordPanel } from "@/components/TrackRecordPanel";
 import { Toast, type ToastData } from "@/components/ui";
 import { flag } from "@/lib/flags";
 import { positionSummary } from "@/lib/format";
@@ -62,6 +64,7 @@ export default function Home() {
   const { session, loading, signIn, refresh, signOut } = useSession();
   const { data: bets, refetch: refetchBets } = usePoll(() => api.bets(), 8000);
   const { data: fixtures } = usePoll(() => api.fixtures(), 60000);
+  const { data: signals } = usePoll(() => api.signals(), 20000);
   const { data: positions, refetch: refetchPositions } = usePoll(
     () => (session ? api.positions(session.userKey) : Promise.resolve([])),
     15000,
@@ -81,6 +84,10 @@ export default function Home() {
   );
 
   const [tab, setTab] = useState<Tab>("matches");
+  // Three browse surfaces share the Matches tab rather than taking bottom-nav
+  // slots — the nav is balanced 2+2 around the centred create button, and a
+  // fifth item would push it off centre.
+  const [boardView, setBoardView] = useState<"board" | "signals" | "record">("board");
   const [agentOpen, setAgentOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [creating, setCreating] = useState<{ open: boolean; fixtureId: number | null }>({
@@ -251,25 +258,21 @@ export default function Home() {
     requireAuth("set up your 12th Man", () => setAgentOpen(true));
   }
 
+  // One row, not a pitch. When the agent is off this is a quiet entry point;
+  // when it's on it becomes a status line worth glancing at. The explanation
+  // lives inside the sheet, where someone has asked for it.
   const agentBanner = (
     <button
       onClick={openAgent}
-      className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-over/30 bg-over/5 p-4 text-left transition hover:bg-over/10"
+      className="mb-3 flex w-full items-center gap-2.5 rounded-xl border border-over/25 bg-over/5 px-3.5 py-2.5 text-left text-sm transition hover:bg-over/10"
     >
-      <span className="text-2xl leading-none" aria-hidden>🛡️</span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-bold text-ink">
-          {agentActive && agentTeams.length
-            ? `12th Man is defending ${agentTeams.map((t) => `${flag(t)} ${t}`).join(", ")}`
-            : "Activate your 12th Man"}
-        </span>
-        <span className="block text-xs leading-snug text-ink-3">
-          {agentActive
-            ? "Auto-backing your team whenever someone bets against them"
-            : "An agent that auto-backs your team against anyone who doubts them"}
-        </span>
+      <span className="leading-none" aria-hidden>🛡️</span>
+      <span className="min-w-0 flex-1 truncate font-semibold text-ink">
+        {agentActive && agentTeams.length
+          ? `12th Man is defending ${agentTeams.map((t) => `${flag(t)} ${t}`).join(", ")}`
+          : "Activate your 12th Man"}
       </span>
-      <span className={`shrink-0 text-lg ${agentActive ? "text-good" : "text-over"}`}>
+      <span className={`shrink-0 ${agentActive ? "text-good" : "text-over"}`}>
         {agentActive ? "●" : "→"}
       </span>
     </button>
@@ -324,21 +327,56 @@ export default function Home() {
 
         {tab === "matches" ? (
           <>
-            <section className="py-6">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-over">
-                World Cup 2026 · settled by TxLINE proof
-              </p>
-              <h1 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight text-ink sm:text-[28px]">
-                Prop bets, settled by proof — not a bookmaker.
+            <section className="pb-4 pt-5">
+              <h1 className="text-xl font-extrabold leading-tight tracking-tight text-ink sm:text-2xl">
+                Prop bets, settled by proof.
               </h1>
               <button
                 onClick={() => setHowOpen(true)}
-                className="mt-2 text-sm font-semibold text-over transition hover:brightness-110"
+                className="mt-1 text-sm font-semibold text-over transition hover:brightness-110"
               >
                 How it works →
               </button>
             </section>
 
+            <nav className="mb-1 flex gap-1 rounded-xl border border-hairline bg-surface p-1" aria-label="Board view">
+              {(
+                [
+                  ["board", "Board"],
+                  ["signals", "Signals"],
+                  ["record", "Track record"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setBoardView(id)}
+                  aria-current={boardView === id}
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                    boardView === id ? "bg-raised text-ink" : "text-ink-3 hover:text-ink-2"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+
+            {boardView === "signals" ? (
+              <div className="py-4">
+                <SignalsPanel
+                  data={signals}
+                  bets={bets ?? []}
+                  fixtures={fixtures ?? []}
+                  onTake={(bet, side) =>
+                    requireAuth("back this side", () => setSelected({ address: bet.address, side }))
+                  }
+                />
+              </div>
+            ) : boardView === "record" ? (
+              <div className="py-4">
+                <TrackRecordPanel onOpen={(address) => setSelected({ address })} />
+              </div>
+            ) : (
+              <>
             {agentBanner}
 
             {board.live.length === 0 && (
@@ -417,6 +455,8 @@ export default function Home() {
                     ? "Hide finished matches without markets"
                     : `Browse ${board.emptyFinished.length} more finished fixtures`}
                 </button>
+              </>
+            )}
               </>
             )}
           </>

@@ -33,23 +33,17 @@ export function DemoBanner({
   }
 
   return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-over/30 bg-over/5 p-4">
-      <div className="min-w-0">
-        <p className="text-sm font-bold text-ink">No match on right now?</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-ink-3">
-          Replay a real World Cup match and watch a TxLINE Merkle proof verify on-chain
-          against a real market — about five minutes, kickoff to proof. The bet locks in
-          once the challenge window closes.
-        </p>
-        {error && <p className="mt-1 text-xs text-critical">{error}</p>}
-      </div>
+    // The button says what it does. Anyone who wants the mechanism can read it
+    // in How it works — it doesn't need to sit on the board.
+    <div className="mb-3">
       <button
         onClick={launch}
         disabled={busy}
-        className="shrink-0 rounded-xl border border-over/50 px-4 py-2.5 text-sm font-bold text-over transition hover:bg-over hover:text-white disabled:opacity-50"
+        className="w-full rounded-xl border border-over/40 bg-over/5 px-4 py-2.5 text-sm font-bold text-over transition hover:bg-over hover:text-white disabled:opacity-50"
       >
         {busy ? "Arming replay…" : "▶ Watch a live settlement"}
       </button>
+      {error && <p className="mt-1 text-xs text-critical">{error}</p>}
     </div>
   );
 }

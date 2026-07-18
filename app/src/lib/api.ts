@@ -83,6 +83,66 @@ export interface Bet {
   underTotal: string;
 }
 
+/** One open market where the recorded base rate disagrees with the pool. */
+export interface Signal {
+  betAddress: string;
+  fixtureId: string;
+  home: string | null;
+  away: string | null;
+  kickoffTs: number;
+  market: {
+    statKeyA: number;
+    statKeyB: number | null;
+    op: "add" | "subtract" | null;
+    kind: "line" | "bothScore";
+    comparison: "greater" | "less";
+    threshold: number;
+  };
+  side: "over" | "under" | null;
+  fairProb: number | null;
+  impliedProb: number | null;
+  edgePp: number | null;
+  source: "recorded" | "unpriced";
+  n: number;
+  reason?: string;
+  overTotal: string;
+  underTotal: string;
+}
+
+/** One settled market and the proof that decided it. */
+export interface SettledRecord {
+  betAddress: string;
+  fixtureId: string;
+  home: string | null;
+  away: string | null;
+  statKeyA: number;
+  statKeyB: number | null;
+  op: "add" | "subtract" | null;
+  kind: "line" | "bothScore";
+  comparison: "greater" | "less";
+  threshold: number;
+  result: boolean;
+  proofTs: string;
+  challengeDeadlineTs: number;
+  overTotal: string;
+  underTotal: string;
+  winningTotal: string;
+}
+
+export interface TrackRecord {
+  summary: {
+    marketsCreated: number;
+    settled: number; // finalized only — settlementPending counts as open
+    voided: number;
+    open: number;
+    totalStakedBaseUnits: string;
+    totalStakedUsdc: number;
+    settledWithProof: number;
+    proofBackedPct: number;
+  };
+  settled: SettledRecord[];
+}
+
 export interface Position {
   address: string;
   bet: string;
@@ -156,6 +216,10 @@ export const api = {
     ),
 
   bets: () => request<Bet[]>("/bets"),
+
+  signals: () => request<{ signals: Signal[]; finals: number; minEdgePp: number }>("/signals"),
+
+  trackRecord: () => request<TrackRecord>("/track-record"),
 
   positions: (userKey: string) =>
     request<Position[]>(`/users/${encodeURIComponent(userKey)}/positions`),

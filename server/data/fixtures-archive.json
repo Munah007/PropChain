@@ -1229,11 +1229,26 @@
   }
  },
  {
+  "fixtureId": 18143850,
+  "home": "Vietnam",
+  "away": "Myanmar",
+  "kickoffTs": 1784376000,
+  "competition": "Friendlies"
+ },
+ {
   "fixtureId": 18257865,
   "home": "France",
   "away": "England",
   "kickoffTs": 1784408400,
-  "competition": "World Cup"
+  "competition": "World Cup",
+  "lastScore": {
+   "home": 0,
+   "away": 0,
+   "statusId": 1,
+   "gameState": "scheduled",
+   "asOf": 1784407986507,
+   "seq": 13
+  }
  },
  {
   "fixtureId": 18257739,
@@ -1241,5 +1256,40 @@
   "away": "Argentina",
   "kickoffTs": 1784487600,
   "competition": "World Cup"
+ },
+ {
+  "fixtureId": 18182808,
+  "home": "Australia",
+  "away": "Brazil",
+  "kickoffTs": 1790348400,
+  "competition": "Friendlies"
+ },
+ {
+  "fixtureId": 18182864,
+  "home": "Australia",
+  "away": "Brazil",
+  "kickoffTs": 1790694000,
+  "competition": "Friendlies"
+ },
+ {
+  "fixtureId": 18263783,
+  "home": "Liechtenstein",
+  "away": "Gibraltar",
+  "kickoffTs": 1791225900,
+  "competition": "Friendlies"
+ },
+ {
+  "fixtureId": 18242838,
+  "home": "New Zealand",
+  "away": "India",
+  "kickoffTs": 1794474000,
+  "competition": "Friendlies"
+ },
+ {
+  "fixtureId": 18242839,
+  "home": "New Zealand",
+  "away": "India",
+  "kickoffTs": 1794733200,
+  "competition": "Friendlies"
  }
 ]

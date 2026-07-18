@@ -61,7 +61,8 @@ result. The program only ever accepts a **proof**, never a claim.
 | 🎯 | **23 prop markets** | Match winner, margins, both-teams-to-score, total/team goals, corners, cards, clean sheets — all from TxLINE's provable stats. |
 | 🔗 | **Proof-based settlement** | A two-phase settle (propose → challenge → finalize) that CPIs into TxLINE's `validate_stat`. The operator can't fabricate a result; a later proof can overturn a wrong one. |
 | 🔎 | **"Verify it yourself"** | Every settled bet links the Merkle proof, the settlement tx, and TxLINE's verifier program on the Solana Explorer. |
-| 📈 | **The odds edge** | Each card shows TxLINE's consensus probability next to the pool-implied one — spot mispriced markets at a glance. |
+| 📈 | **Signals** | Every open market priced against the World Cup we recorded — 78 real finals replayed through the market's own on-chain predicate — next to what the pool is paying. The gap is the edge. |
+| 🧾 | **Track record** | A public ledger of every result the protocol ever produced, each with its Merkle proof and settlement tx. The proved count equals the settled count because no other settlement path exists. |
 | 🛡️ | **The 12th Man agent** | An autonomous agent that *defends your team*: auto-backs them whenever someone bets against them, from your wallet, within your limits. |
 | ▶️ | **Watch a live settlement** | Replays a real finished match on demand so you can watch the keeper settle a bet with a real proof — even after the tournament ends. |
 | ✉️ | **Email login, no seed phrase** | Sign in with an email; a Solana wallet is created and funded server-side. Crypto rails, consumer feel. |
@@ -105,6 +106,36 @@ strictly-monotonic proof-timestamp rule for challenges.
 
 ---
 
+## Signals — pricing from the tournament we recorded
+
+TxLINE's StablePrice feed goes quiet once the tournament ends, so a consensus
+line that reads "—" is all anyone would see after the final. Rather than invent
+a goals model, we price from the one dataset that is genuinely ours: **the World
+Cup our own keeper recorded**, archived as final scores.
+
+The method is deliberately dumb and fully auditable. For each open market we take
+its **exact on-chain predicate** — the same stat keys, operator, comparison and
+strict inequality that `validate_stat` will settle it with — and replay it across
+every recorded final. The share that came in is the fair value:
+
+```
+over 2.5 goals  59.0%     BTTS       51.3%     n = 78 recorded finals
+home win        48.7%     avg goals   2.88
+```
+
+Against that we set the **pool-implied** probability, which for a parimutuel pool
+is just the over side's share of the pot. Where they diverge, one of them is
+wrong, and the gap is the signal. We take no view on which is wrong.
+
+**What we deliberately don't price.** The archive holds scorelines, not stat
+sheets — full `Stats` frames exist for four fixtures, which is not a sample. So
+anything touching corners or cards returns `unpriced`, with the reason shown in
+the UI, rather than a number we couldn't defend. `server/src/pricing/` is pure and
+unit-tested; `predicate.ts` is a deliberate mirror of the Rust predicate, and the
+tests exist to keep the two from drifting.
+
+---
+
 ## Architecture
 
 A TypeScript + Rust monorepo:
@@ -113,7 +144,7 @@ A TypeScript + Rust monorepo:
 |---|---|
 | `programs/propchain` | Anchor program — bet lifecycle, pUSDC escrow, two-phase CPI settlement, creator sweep. |
 | `app/` | Next.js 14 frontend — mobile-first board, bet flow, proof viewer, 12th Man, Claim/Account. Pure UI; no keys in the browser. |
-| `server/` | NestJS API — server-managed wallets (Privy or local dev), email sessions, betting, odds, the agent engine, replay demo. |
+| `server/` | NestJS API — server-managed wallets (Privy or local dev), email sessions, betting, odds, signals + track record, the agent engine, replay demo. |
 | `keeper/` | Watches the TxLINE feed, records it, routes match phases, and autonomously proposes / challenges / finalizes / voids. |
 | `packages/txline` | Standalone TxLINE client — auth, REST, hardened SSE, proof → instruction args. Reusable SDK. |
 | `idls/` | TxLINE oracle IDL, consumed on-chain via `declare_program!`. |
@@ -146,11 +177,14 @@ on-chain proofs**, not just a REST API you have to trust.
 2. Tap a stake button → sign in with just an email → you get a wallet funded with
    100 pUSDC. Stake.
 3. Open any **settled** market → **Verify it yourself** → click through the proof and
-   TxLINE's verifier program on the Explorer.
-4. No live match? Hit **▶ Watch a live settlement** and watch a real bet settle with a
+   TxLINE's verifier program on the Explorer. Or open **Track record** for the whole
+   ledger at once — every result the protocol ever produced, each with its proof.
+4. Open **Signals** to see where the pool disagrees with the recorded base rate,
+   and why.
+5. No live match? Hit **▶ Watch a live settlement** and watch a real bet settle with a
    real proof in ~2 minutes.
 
-**Live app:** [add your deployed link] · **Demo video:** [add link]
+**Live app:** <https://propchain-production.up.railway.app> · **API:** <https://propchainserver-production.up.railway.app> · **Demo video:** [add link]
 
 ### Deployed on devnet
 

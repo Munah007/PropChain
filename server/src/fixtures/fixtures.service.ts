@@ -12,8 +12,16 @@ import { Injectable, Logger } from "@nestjs/common";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { isMatchOver } from "./phases";
+import type { HistoricalFinal } from "../pricing/base-rates";
 
-const WORLD_CUP_COMPETITION_ID = 72;
+// Competitions we surface. 72 is the World Cup — the tournament this was built
+// for. 430 (international friendlies) is included because TxLINE keeps serving
+// real fixtures there once the World Cup ends: without it the board goes dead
+// the moment the final whistle blows, and nobody can open a market on anything.
+// These are genuine feed fixtures with genuine kickoffs, not seeded placeholders.
+const COMPETITION_IDS = new Set(
+  (process.env.COMPETITION_IDS ?? "72,430").split(",").map((s) => Number(s.trim())).filter(Number.isFinite)
+);
 // Wide lookback so a single fetch backfills the whole tournament into the
 // archive (TxLINE serves ~the full schedule; filtering happens client-side).
 const LOOKBACK_DAYS = Number(process.env.FIXTURES_LOOKBACK_DAYS ?? 30);
@@ -263,6 +271,22 @@ export class FixturesService {
     return this.loadArchive().get(fixtureId)?.lastScore ?? null;
   }
 
+  /**
+   * Every archived final we hold, as the goal pairs the pricer replays markets
+   * against. Only goals: the archive stores a scoreline, not a stat sheet, so
+   * corners and cards are deliberately not priceable (see pricing/base-rates).
+   */
+  recordedFinals(): HistoricalFinal[] {
+    const finals: HistoricalFinal[] = [];
+    for (const e of this.loadArchive().values()) {
+      const s = e.lastScore;
+      if (s && typeof s.home === "number" && typeof s.away === "number") {
+        finals.push({ fixtureId: e.fixtureId, home: s.home, away: s.away });
+      }
+    }
+    return finals;
+  }
+
   // ---------- API ----------
 
   /**
@@ -375,7 +399,7 @@ export class FixturesService {
       const raw = await res.json();
       const list = Array.isArray(raw) ? raw : [];
       fetched = list
-        .filter((f: any) => f.CompetitionId === WORLD_CUP_COMPETITION_ID && f.FixtureId)
+        .filter((f: any) => COMPETITION_IDS.has(f.CompetitionId) && f.FixtureId)
         .map((f: any) => ({
           fixtureId: f.FixtureId,
           home: f.Participant1,

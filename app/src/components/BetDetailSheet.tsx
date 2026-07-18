@@ -95,8 +95,10 @@ export function BetDetailSheet({
     }
   }
 
+  // Only the step you're actually on gets a caption — a timeline where every
+  // row explains itself reads as documentation, not status.
   const steps: { label: string; detail: string; done: boolean; live?: boolean }[] = [
-    { label: "Created", detail: "Bet config immutable on-chain", done: true },
+    { label: "Created", detail: "Config locked on-chain", done: true },
     {
       label: "Kickoff",
       detail: kickoffLabel(bet.kickoffTs),
@@ -105,10 +107,10 @@ export function BetDetailSheet({
     {
       label: "Settlement proposed",
       detail: bet.pending
-        ? `Keeper submitted a TxLINE Merkle proof — verdict “${bet.pending.result ? labels.over : labels.under}”`
+        ? `Merkle proof verified — “${bet.pending.result ? labels.over : labels.under}”`
         : bet.status === "settled" || bet.status === "voided"
-          ? "Proof verified via CPI into TxLINE's validate_stat"
-          : "Waiting for the final whistle — proofs from live match phases are rejected on-chain",
+          ? "Proof verified on-chain"
+          : "Waiting for the final whistle",
       done: bet.pending !== null || bet.status === "settled" || bet.status === "voided",
       live: bet.status === "settlementPending",
     },
@@ -116,15 +118,19 @@ export function BetDetailSheet({
       label: bet.status === "voided" ? "Voided" : "Settled",
       detail:
         bet.status === "settled"
-          ? `“${bet.result ? labels.over : labels.under}” won — winners claim from the pool`
+          ? `“${bet.result ? labels.over : labels.under}” won`
           : bet.status === "voided"
             ? "All bets refundable"
             : bet.pending
-              ? "Locks when the challenge window lapses — any later proof can overturn until then"
+              ? "Locks when the window lapses"
               : "—",
       done: bet.status === "settled" || bet.status === "voided",
     },
   ];
+
+  // The live step if there is one, otherwise the furthest step reached.
+  const activeStep = steps.findIndex((s) => s.live);
+  const currentStep = activeStep >= 0 ? activeStep : steps.map((s) => s.done).lastIndexOf(true);
 
   return (
     <Sheet open onClose={onClose} title={betTitle(bet, fixtures)}>
@@ -272,7 +278,9 @@ export function BetDetailSheet({
                       </span>
                     )}
                   </p>
-                  <p className="text-xs leading-relaxed text-ink-3">{step.detail}</p>
+                  {i === currentStep && step.detail !== "—" && (
+                    <p className="text-xs leading-relaxed text-ink-3">{step.detail}</p>
+                  )}
                 </div>
               </li>
             ))}
@@ -295,10 +303,7 @@ export function BetDetailSheet({
               </span>
             )}
           </div>
-          <p className="text-ink-3">
-            No admin key can decide this bet. Settlement requires a Merkle proof from TxLINE&apos;s
-            oracle, verified by CPI into their on-chain program — inspect every transaction:
-          </p>
+          <p className="text-ink-3">Decided by a Merkle proof, not an admin key. Check it:</p>
           <div className="mt-2 flex flex-col gap-1">
             <a className="text-over hover:underline" href={explorerUrl(bet.address)} target="_blank" rel="noreferrer">
               Bet account {shortAddress(bet.address)} ↗

@@ -19,15 +19,21 @@ import { DemoService } from "./demo/demo.service";
 import { OddsController } from "./odds/odds.controller";
 import { OddsService } from "./odds/odds.service";
 import { AgentController } from "./agent/agent.controller";
+import { SignalsController } from "./signals/signals.controller";
+import { SignalsService } from "./signals/signals.service";
 import { AgentService } from "./agent/agent.service";
+import { TrackRecordController } from "./track-record/track-record.controller";
+import { TrackRecordService } from "./track-record/track-record.service";
 
 @Module({
-  controllers: [SessionController, BetsController, FixturesController, DemoController, OddsController, AgentController],
+  controllers: [SessionController, BetsController, FixturesController, DemoController, OddsController, AgentController, SignalsController, TrackRecordController],
   providers: [
     FixturesService,
     DemoService,
     OddsService,
     AgentService,
+    SignalsService,
+    TrackRecordService,
     {
       provide: SOLANA_CONNECTION,
       useFactory: () =>

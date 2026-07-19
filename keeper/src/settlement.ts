@@ -137,6 +137,22 @@ export class SettlementEngine {
       // A code we have never seen: hold rather than risk a false settlement.
       return this.note(key, `fixture ${fixtureId} phase unknown (${routing.reason}) — holding`);
     }
+    // Anything that is not an explicit "settle" phase holds.
+    //
+    // The proof's `period` is not enough on its own. On 2026-07-18, during
+    // France v England, the feed served a stat-validation proof carrying a
+    // final-phase period at minute 22 while StatusId still read 4 (second half
+    // in play). FINAL_PERIODS accepted it, the keeper proposed, and the bet
+    // finalized on a first-half scoreline once the challenge window lapsed.
+    //
+    // The program was never at fault — propose_settlement rejects a genuinely
+    // in-play period with ProofNotFinal. But when the feed's own phase marker
+    // lies, that check has nothing to catch. StatusId is the independent
+    // signal, so require both: only propose once the feed says, separately
+    // from the proof, that the match is actually over.
+    if (routing.action !== "settle" && statusEvent != null) {
+      return this.note(key, `fixture ${fixtureId} still in play (${routing.reason}) — holding`);
+    }
 
     const validation = await this.txline.statValidation(
       fixtureId,

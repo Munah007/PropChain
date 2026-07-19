@@ -1242,12 +1242,12 @@
   "kickoffTs": 1784408400,
   "competition": "World Cup",
   "lastScore": {
-   "home": 0,
-   "away": 0,
-   "statusId": 1,
+   "home": 2,
+   "away": 4,
+   "statusId": 4,
    "gameState": "scheduled",
-   "asOf": 1784407986507,
-   "seq": 13
+   "asOf": 1784413498295,
+   "seq": 834
   }
  },
  {

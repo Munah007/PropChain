@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="app/public/logo-mark.png" alt="PropChain" width="96" />
+  <img src="app/public/hero.png" alt="PropChain — prop bets on the World Cup, settled by proof, not a bookmaker. Trustless, provable, transparent, permissionless. Powered by TxLINE and Solana." width="820" />
 
   # PropChain
 
@@ -12,7 +12,21 @@
   Built for the [TxODDS × Solana World Cup Hackathon](https://superteam.fun/earn/hackathon/world-cup) · Prediction Markets & Settlement track.
 
   `devnet` · `Anchor` · `Next.js` · `TxLINE Merkle proofs`
+
+  **[▶ Watch the demo](https://youtu.be/RwsAghzsxFI)** · **[Live app](https://propchain-production.up.railway.app)** · [Verify a settlement on Explorer](https://explorer.solana.com/address/6pW64gN1s2uqjHkn1unFeEjAwJkPGHoppGvS715wyP2J?cluster=devnet)
 </div>
+
+|  | |
+|---|---|
+| **Trustless** | No middlemen, no manipulation. You stake into an escrow no one can touch, and no operator has the power to decide an outcome. |
+| **Provable** | Every result is verified on-chain against a TxLINE Merkle proof. |
+| **Transparent** | Open data, verifiable outcomes. Every settlement links the proof that decided it — check any of them yourself. |
+| **Permissionless** | No admin key. Anyone can run a keeper — the program has no instruction that resolves a market by assertion, so settlement isn't ours to grant. |
+
+Note what is deliberately *not* on that list: speed. Settlement runs a 90-minute
+challenge window before it finalizes, on purpose, so a later proof can overturn a
+wrong one. A betting protocol that settles instantly is a protocol that can't be
+corrected.
 
 ---
 
@@ -69,22 +83,6 @@ result. The program only ever accepts a **proof**, never a claim.
 
 ---
 
-## The 12th Man — a loyalty agent
-
-The feature people remember. You name your team (a nation, or a club — the picker is
-searchable by team or league), set a min/max stake and a daily cap, and switch it on.
-
-From then on the agent watches the board and, whenever a market goes against your
-team, it **automatically takes the pro-team side for you** — signing from your own
-wallet. Two modes: *answer doubters* (only when someone bets against you) or *back
-every market*. It knows which side actually favors your team per market (goals and
-corners are good, cards are bad, home vs away handled).
-
-Because wallets are custodial server-side, it's a real autonomous on-chain bettor —
-not a suggestion engine. Every bet it places is yours, badged in your history.
-
----
-
 ## How settlement works (the part that matters)
 
 1. **`propose_settlement`** — permissionless. The caller supplies a TxLINE
@@ -136,6 +134,22 @@ tests exist to keep the two from drifting.
 
 ---
 
+## The 12th Man — a loyalty agent
+
+The feature people remember. You name your team (a nation, or a club — the picker is
+searchable by team or league), set a min/max stake and a daily cap, and switch it on.
+
+From then on the agent watches the board and, whenever a market goes against your
+team, it **automatically takes the pro-team side for you** — signing from your own
+server-managed wallet. Two modes: *answer doubters* (only when someone bets against
+you) or *back every market*. It knows which side actually favors your team per market
+(goals and corners are good, cards are bad, home vs away handled).
+
+Because wallets are custodial server-side, it's a real autonomous on-chain bettor —
+not a suggestion engine. Every bet it places is yours, badged in your history.
+
+---
+
 ## Architecture
 
 A TypeScript + Rust monorepo:
@@ -184,7 +198,7 @@ on-chain proofs**, not just a REST API you have to trust.
 5. No live match? Hit **▶ Watch a live settlement** and watch a real bet settle with a
    real proof in ~2 minutes.
 
-**Live app:** <https://propchain-production.up.railway.app> · **API:** <https://propchainserver-production.up.railway.app> · **Demo video:** [add link]
+**Live app:** <https://propchain-production.up.railway.app> · **API:** <https://propchainserver-production.up.railway.app> · **Demo video:** <https://youtu.be/RwsAghzsxFI>
 
 ### Deployed on devnet
 
